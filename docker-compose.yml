@@ -1,0 +1,102 @@
+services:
+  bot:
+    build: .
+    env_file: .env
+    environment:
+      CODE_EXECUTOR_WORKSPACE: ${CODE_EXECUTOR_WORKSPACE:-/workspace}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      litellm:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+      - agent_workspace:/workspace
+
+  mongo:
+    image: mongo:8
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # stable hostname for replica set member
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    networks:
+      - backend
+    healthcheck:
+      # Auto-initiates replica set on first run; subsequent runs verify PRIMARY status
+      test: >
+        mongosh --quiet --eval "
+          try { rs.status() }
+          catch (e) { rs.initiate({_id:'rs0', members:[{_id:0, host:'host.docker.internal:27017'}]}) }
+        "
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 10s
+
+  litellm-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: litellm
+      POSTGRES_PASSWORD: litellm
+      POSTGRES_DB: litellm
+    volumes:
+      - litellm_pg_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      MINIMAX_API_KEY: ${MINIMAX_API_KEY}
+      LITELLM_MASTER_KEY: ${LITELLM_API_KEY}
+      DATABASE_URL: postgresql://litellm:litellm@litellm-db:5432/litellm
+      STORE_MODEL_IN_DB: "True"
+    depends_on:
+      litellm-db:
+        condition: service_healthy
+    volumes:
+      - ./litellm_config.yaml:/app/config.yaml
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    networks:
+      - backend
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness')",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  mongo_data:
+  mongo_config:
+  agent_workspace:
+  litellm_pg_data:
+
+networks:
+  backend:
+    driver: bridge
