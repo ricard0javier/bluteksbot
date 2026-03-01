@@ -32,6 +32,9 @@ MONGO_COLLECTION_DLQ: str = os.getenv("MONGO_COLLECTION_DLQ", "dlq")
 MONGO_COLLECTION_IDEMPOTENCY: str = os.getenv(
     "MONGO_COLLECTION_IDEMPOTENCY", "processed"
 )
+MONGO_COLLECTION_CONV_HISTORY: str = os.getenv(
+    "MONGO_COLLECTION_CONV_HISTORY", "conversation_history"
+)
 
 # ── LiteLLM ───────────────────────────────────────────────────────────────────
 LITELLM_BASE_URL: str = os.getenv("LITELLM_BASE_URL", "http://localhost:4000")
@@ -73,6 +76,15 @@ BACKOFF_MULTIPLIER: float = float(os.getenv("BACKOFF_MULTIPLIER", "2.0"))
 # ── LangGraph / Deep Agents / LangMem ────────────────────────────────────────
 DEEP_AGENT_WORKSPACE: str = os.getenv("DEEP_AGENT_WORKSPACE", "/workspace/agent_files")
 LANGMEM_NAMESPACE: str = os.getenv("LANGMEM_NAMESPACE", f"{APP_NAME},memories")
+
+# ── Summarization ─────────────────────────────────────────────────────────────
+# Set to the model's INPUT context window size (not max output tokens).
+# Summarization fires at ~85 % of this value; the last ~10 % of tokens are kept.
+# Set to 0 to disable summarization entirely.
+# only summariz chat history, not the context of the current message
+SUMMARIZATION_TRIGGER_TOKENS: int = int(
+    os.getenv("SUMMARIZATION_TRIGGER_TOKENS", "100000")
+)
 
 # ── LangSmith (optional observability) ───────────────────────────────────────
 LANGSMITH_TRACING: str = os.getenv("LANGSMITH_TRACING", "false")

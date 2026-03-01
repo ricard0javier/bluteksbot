@@ -1,4 +1,5 @@
 """Deep Agent factory — builds the LangGraph Deep Agent with MongoDB persistence and LangMem."""
+
 import logging
 import os
 from functools import lru_cache
@@ -30,7 +31,7 @@ def build_agent():
     _configure_langsmith()
 
     from deepagents import create_deep_agent
-    from deepagents.backends import FilesystemBackend
+    from deepagents.backends import CompositeBackend, FilesystemBackend
     from langchain.chat_models import init_chat_model
     from langchain_openai import OpenAIEmbeddings
     from langgraph.checkpoint.mongodb import MongoDBSaver
@@ -39,6 +40,7 @@ def build_agent():
 
     from src.llms.prompts import ORCHESTRATOR_SYSTEM
     from src.persistence.client import get_client, get_db
+    from src.persistence.mongodb_backend import MongoDBBackend
     from src.tools.agent_tools import ALL_TOOLS
 
     checkpointer = MongoDBSaver(
@@ -63,6 +65,15 @@ def build_agent():
         index_config=index_config,
     )
 
+    # The built-in SummarizationMiddleware triggers at fraction(0.85) of max_input_tokens.
+    # Setting max_input_tokens = SUMMARIZATION_TRIGGER_TOKENS / 0.85 makes the trigger exact.
+    # When SUMMARIZATION_TRIGGER_TOKENS=0 the profile is omitted → trigger falls back to
+    # 170 000 tokens, effectively disabling summarization.
+    summarization_profile = (
+        {"max_input_tokens": int(config.SUMMARIZATION_TRIGGER_TOKENS / 0.85)}
+        if config.SUMMARIZATION_TRIGGER_TOKENS > 0
+        else None
+    )
     model = init_chat_model(
         model=config.LITELLM_WORKER_MODEL,
         model_provider="openai",
@@ -70,11 +81,35 @@ def build_agent():
         api_key=config.LITELLM_API_KEY,
         temperature=config.LITELLM_TEMPERATURE,
         max_tokens=config.LITELLM_MAX_TOKENS,
+        profile=summarization_profile,
     )
 
     memory_namespace = tuple(p.strip() for p in config.LANGMEM_NAMESPACE.split(","))
     manage_memory = create_manage_memory_tool(namespace=memory_namespace)
     search_memory = create_search_memory_tool(namespace=memory_namespace)
+
+    # CompositeBackend routes /conversation_history/ to MongoDB so the built-in
+    # SummarizationMiddleware persists summaries there instead of the filesystem.
+    fs_backend = FilesystemBackend(
+        root_dir=config.DEEP_AGENT_WORKSPACE,
+        virtual_mode=config.ENVIRONMENT == "development",
+    )
+    conv_history_backend = MongoDBBackend(
+        collection=get_db()[config.MONGO_COLLECTION_CONV_HISTORY],
+    )
+    backend = CompositeBackend(
+        default=fs_backend,
+        routes={"/conversation_history/": conv_history_backend},
+    )
+
+    if config.SUMMARIZATION_TRIGGER_TOKENS > 0:
+        logger.info(
+            "Summarization enabled: trigger≈%d tokens, store=%s.",
+            config.SUMMARIZATION_TRIGGER_TOKENS,
+            config.MONGO_COLLECTION_CONV_HISTORY,
+        )
+    else:
+        logger.info("Summarization disabled (SUMMARIZATION_TRIGGER_TOKENS=0).")
 
     agent = create_deep_agent(
         model=model,
@@ -82,10 +117,7 @@ def build_agent():
         system_prompt=ORCHESTRATOR_SYSTEM,
         checkpointer=checkpointer,
         store=store,
-        backend=FilesystemBackend(
-            root_dir=config.DEEP_AGENT_WORKSPACE,
-            virtual_mode=config.ENVIRONMENT == "development",
-        ),
+        backend=backend,
     )
 
     logger.info("Deep Agent built (model=%s).", config.LITELLM_WORKER_MODEL)
