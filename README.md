@@ -7,10 +7,11 @@
 | Layer | Tech |
 |---|---|
 | Transport | Telegram Bot API (pyTelegramBotAPI) |
-| Agents | Orchestrator + 7 specialist workers |
-| LLM | LiteLLM proxy → OpenAI (self-hosted, swap models without code changes) |
-| Persistence | MongoDB 8 (replica set — change streams + transactions enabled) |
-| Memory | Vector similarity search over conversation history |
+| Agent | LangGraph Deep Agents (`deepagents`) — planning, tool calling, subagents |
+| LLM | LiteLLM proxy → OpenAI-compatible (self-hosted, swap models without code changes) |
+| Persistence | MongoDB 8 (replica set — checkpoints + long-term memory + events) |
+| Short-term memory | `MongoDBSaver` (LangGraph checkpointer) — per-chat conversation history |
+| Long-term memory | `MongoDBStore` + LangMem — cross-session user memory with vector search |
 
 ## Quickstart
 
@@ -43,19 +44,32 @@ make dev
 
 | Variable | Default | Description |
 |---|---|---|
+| `LITELLM_WORKER_MODEL` | `minimax-m2` | Model used by the Deep Agent for all tasks |
+| `LITELLM_EMBEDDING_MODEL` | `text-embedding-3-small` | Embedding model for long-term memory search |
+| `LANGMEM_NAMESPACE` | `bluteksbot,memories` | Comma-separated namespace for LangMem long-term store |
+| `LANGSMITH_TRACING` | `false` | Set to `true` to enable LangSmith tracing |
+| `LANGSMITH_API_KEY` | _(empty)_ | Required when `LANGSMITH_TRACING=true` |
+| `LANGSMITH_PROJECT` | `bluteksbot` | LangSmith project name |
 | `CODE_EXECUTOR_WORKSPACE` | `/workspace` | Sandbox working directory for code execution |
 
 ## Agent routing
 
 ```
-User message → Orchestrator (LLM classification)
-                    ├── search_agent     web search (Tavily)
-                    ├── files_agent      PDF / DOCX / image OCR
-                    ├── code_agent       write + execute Python
-                    ├── calendar_agent   scheduling
-                    ├── email_agent      SMTP
-                    ├── reminders_agent  timed reminders
-                    └── chat_agent       general conversation
+User message
+    ↓
+Orchestrator (thin wrapper)
+    ↓
+Deep Agent (LangGraph)  ←── MongoDBSaver (thread memory per chat_id)
+    │                   ←── MongoDBStore + LangMem (long-term user memory)
+    ├── web_search_tool        real-time web search (Tavily)
+    ├── execute_python_tool    run Python code
+    ├── execute_shell_tool     run bash commands
+    ├── send_email_tool        SMTP email
+    ├── calendar_tool          scheduling
+    ├── reminder_tool          timed reminders
+    ├── process_document_tool  PDF / DOCX / image OCR
+    ├── manage_memory          save facts to long-term memory (LangMem)
+    └── search_memory          recall facts from long-term memory (LangMem)
 ```
 
 ## Development
@@ -66,8 +80,8 @@ make lint    # ruff + mypy
 make clean   # remove caches + volumes
 ```
 
-## Adding a new agent
+## Adding a new tool
 
-1. Create `src/workers/my_agent.py` with `def run(task, message, raw) -> AgentResult`
-2. Add its system prompt to `src/llms/prompts.py`
-3. Register it in `_AGENT_REGISTRY` in `src/agent/orchestrator.py`
+1. Create (or add to) `src/tools/agent_tools.py` with a `@tool` decorated function
+2. Add it to the `ALL_TOOLS` list at the bottom of that file
+3. Update `ORCHESTRATOR_SYSTEM` in `src/llms/prompts.py` to describe the new tool

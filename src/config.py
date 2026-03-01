@@ -1,10 +1,17 @@
 """Centralised configuration — all values via os.getenv(), zero hardcoded values elsewhere."""
+
 import os
+
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ── Application ───────────────────────────────────────────────────────────────
 APP_NAME: str = os.getenv("APP_NAME", "bluteksbot")
 LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 LOG_FILE: str = os.getenv("LOG_FILE", "logs/bluteksbot.log")
+ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
 
 # ── Telegram ──────────────────────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
@@ -22,14 +29,18 @@ MONGO_DB: str = os.getenv("MONGO_DB", "bluteksbot")
 MONGO_COLLECTION_EVENTS: str = os.getenv("MONGO_COLLECTION_EVENTS", "events")
 MONGO_COLLECTION_MEMORY: str = os.getenv("MONGO_COLLECTION_MEMORY", "memory")
 MONGO_COLLECTION_DLQ: str = os.getenv("MONGO_COLLECTION_DLQ", "dlq")
-MONGO_COLLECTION_IDEMPOTENCY: str = os.getenv("MONGO_COLLECTION_IDEMPOTENCY", "processed")
+MONGO_COLLECTION_IDEMPOTENCY: str = os.getenv(
+    "MONGO_COLLECTION_IDEMPOTENCY", "processed"
+)
 
 # ── LiteLLM ───────────────────────────────────────────────────────────────────
 LITELLM_BASE_URL: str = os.getenv("LITELLM_BASE_URL", "http://localhost:4000")
 LITELLM_API_KEY: str = os.getenv("LITELLM_API_KEY", "sk-dummy")
 LITELLM_ORCHESTRATOR_MODEL: str = os.getenv("LITELLM_ORCHESTRATOR_MODEL", "gpt-4o-mini")
 LITELLM_WORKER_MODEL: str = os.getenv("LITELLM_WORKER_MODEL", "gpt-4o-mini")
-LITELLM_EMBEDDING_MODEL: str = os.getenv("LITELLM_EMBEDDING_MODEL", "text-embedding-3-small")
+LITELLM_EMBEDDING_MODEL: str = os.getenv(
+    "LITELLM_EMBEDDING_MODEL", "text-embedding-3-small"
+)
 LITELLM_MAX_TOKENS: int = int(os.getenv("LITELLM_MAX_TOKENS", "4096"))
 LITELLM_TEMPERATURE: float = float(os.getenv("LITELLM_TEMPERATURE", "0.2"))
 
@@ -57,3 +68,11 @@ CODE_EXECUTOR_WORKSPACE: str = os.getenv("CODE_EXECUTOR_WORKSPACE", "/workspace"
 BACKOFF_BASE_SECONDS: float = float(os.getenv("BACKOFF_BASE_SECONDS", "1.0"))
 BACKOFF_MAX_SECONDS: float = float(os.getenv("BACKOFF_MAX_SECONDS", "60.0"))
 BACKOFF_MULTIPLIER: float = float(os.getenv("BACKOFF_MULTIPLIER", "2.0"))
+
+# ── LangGraph / Deep Agents / LangMem ────────────────────────────────────────
+LANGMEM_NAMESPACE: str = os.getenv("LANGMEM_NAMESPACE", f"{APP_NAME},memories")
+
+# ── LangSmith (optional observability) ───────────────────────────────────────
+LANGSMITH_TRACING: str = os.getenv("LANGSMITH_TRACING", "false")
+LANGSMITH_API_KEY: str = os.getenv("LANGSMITH_API_KEY", "")
+LANGSMITH_PROJECT: str = os.getenv("LANGSMITH_PROJECT", APP_NAME)

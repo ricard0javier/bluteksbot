@@ -1,9 +1,11 @@
 """Code and shell executor — subprocess with timeout, working in the configured workspace."""
+
 import logging
 import subprocess
 import sys
-
+import os
 from src import config
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -28,13 +30,22 @@ def _run(
     timeout: int = config.CODE_EXECUTOR_TIMEOUT,
 ) -> str:
     try:
+        # create the workspace if it doesn't exist
+        if not os.path.exists(_WORKSPACE):
+            os.makedirs(_WORKSPACE)
+
+        # create a temporary subdirectory in the workspace
+        temp_dir = os.path.join(_WORKSPACE, str(uuid.uuid4()))
+        os.makedirs(temp_dir)
+
+        # run the command
         result = subprocess.run(
             cmd,
             shell=shell,
             capture_output=True,
             text=True,
             timeout=timeout,
-            cwd=_WORKSPACE,
+            cwd=temp_dir,
         )
         output = result.stdout + result.stderr
         if len(output) > _MAX_OUTPUT_CHARS:

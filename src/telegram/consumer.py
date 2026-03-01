@@ -1,4 +1,5 @@
 """Telegram polling consumer — exponential backoff reconnect, idempotency gate, DLQ on error."""
+
 import logging
 import threading
 import time
@@ -25,14 +26,19 @@ def _backoff_sleep(attempt: int) -> None:
 class TelegramConsumer:
     def __init__(self, stop_event: threading.Event) -> None:
         self._stop = stop_event
+        # https://pypi.org/project/pyTelegramBotAPI/
         self._bot = telebot.TeleBot(
             config.TELEGRAM_BOT_TOKEN,
             threaded=False,
         )
         self._register_handlers()
+        if not config.TELEGRAM_ALLOWED_USER_IDS:
+            logger.warning("No allowed user IDs configured — allowing all users.")
 
     def _register_handlers(self) -> None:
-        @self._bot.message_handler(func=lambda m: True, content_types=["text", "document", "photo"])
+        @self._bot.message_handler(
+            func=lambda m: True, content_types=["text", "document", "photo"]
+        )
         def handle_message(message: telebot.types.Message) -> None:
             self._process(message)
 

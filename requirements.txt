@@ -25,6 +25,14 @@ pytesseract>=0.3.10
 # Scheduling (reminders / calendar) — keep 3.x; APScheduler 4.x is still alpha
 APScheduler>=3.10.0,<4.0.0
 
+# LangGraph / Deep Agents / LangMem
+langgraph>=1.0.10
+langgraph-checkpoint-mongodb>=0.3.1
+langchain>=1.2.10
+langchain-openai>=1.1.10
+langmem>=0.0.30
+deepagents>=0.4.4
+
 # Dev / Testing
 pytest>=9.0.0
 pytest-mock>=3.14.0

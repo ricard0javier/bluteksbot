@@ -1,11 +1,8 @@
 """Application entrypoint — lifecycle management only, zero business logic."""
+
 import logging
 import signal
 import threading
-
-from dotenv import load_dotenv
-
-load_dotenv()
 
 from src import config
 from src.telegram.consumer import TelegramConsumer
@@ -50,7 +47,9 @@ class Application:
         while not self.stop_event.is_set():
             for thread in self._threads:
                 if not thread.is_alive():
-                    logging.error("Thread '%s' died unexpectedly — shutting down.", thread.name)
+                    logging.error(
+                        "Thread '%s' died unexpectedly — shutting down.", thread.name
+                    )
                     self.stop_event.set()
                     break
             self.stop_event.wait(timeout=5)
