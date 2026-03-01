@@ -1,10 +1,10 @@
 """Unit tests for orchestrator classification routing."""
+
 import json
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.agent.models import OrchestratorDecision
 from src.agent.orchestrator import Orchestrator
 
 

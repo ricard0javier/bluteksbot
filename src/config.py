@@ -63,6 +63,7 @@ CALENDAR_TIMEZONE: str = os.getenv("CALENDAR_TIMEZONE", "UTC")
 
 CODE_EXECUTOR_TIMEOUT: int = int(os.getenv("CODE_EXECUTOR_TIMEOUT", "60"))
 CODE_EXECUTOR_WORKSPACE: str = os.getenv("CODE_EXECUTOR_WORKSPACE", "/workspace")
+CODE_EXECUTOR_MAX_OUTPUT_CHARS: int = int(os.getenv("CODE_EXECUTOR_MAX_OUTPUT_CHARS", "5000"))
 
 # ── Exponential Backoff ───────────────────────────────────────────────────────
 BACKOFF_BASE_SECONDS: float = float(os.getenv("BACKOFF_BASE_SECONDS", "1.0"))

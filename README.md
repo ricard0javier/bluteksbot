@@ -61,15 +61,19 @@ Orchestrator (thin wrapper)
     ↓
 Deep Agent (LangGraph)  ←── MongoDBSaver (thread memory per chat_id)
     │                   ←── MongoDBStore + LangMem (long-term user memory)
-    ├── web_search_tool        real-time web search (Tavily)
-    ├── execute_python_tool    run Python code
-    ├── execute_shell_tool     run bash commands
-    ├── send_email_tool        SMTP email
-    ├── calendar_tool          scheduling
-    ├── reminder_tool          timed reminders
-    ├── process_document_tool  PDF / DOCX / image OCR
-    ├── manage_memory          save facts to long-term memory (LangMem)
-    └── search_memory          recall facts from long-term memory (LangMem)
+    │
+    ├── Custom tools (domain integrations)
+    │   ├── web_search_tool      real-time web search (Tavily)
+    │   ├── execute_python_tool  run Python code
+    │   ├── execute_shell_tool   run bash commands
+    │   ├── send_email_tool      SMTP email
+    │   ├── manage_memory        save facts to long-term memory (LangMem)
+    │   └── search_memory        recall facts from long-term memory (LangMem)
+    │
+    └── Built-in Deep Agent capabilities (no custom code needed)
+        ├── write_todos          plan and track multi-step tasks
+        ├── ls / read_file / write_file / edit_file / glob / grep  filesystem
+        └── task                 delegate to specialized subagents
 ```
 
 ## Development

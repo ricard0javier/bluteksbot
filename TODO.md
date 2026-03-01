@@ -1,0 +1,1 @@
+- [ ] use [Sandbox as tool pattern](https://docs.langchain.com/oss/python/deepagents/sandboxes#sandbox-as-tool-pattern) or [Agent in sandbox pattern](https://docs.langchain.com/oss/python/deepagents/sandboxes#agent-in-sandbox-pattern) as a replacement for [code_executor.py](src/tools/code_executor.py)

@@ -9,7 +9,7 @@ import uuid
 
 logger = logging.getLogger(__name__)
 
-_MAX_OUTPUT_CHARS = 5000
+_MAX_OUTPUT_CHARS = config.CODE_EXECUTOR_MAX_OUTPUT_CHARS
 _WORKSPACE = config.CODE_EXECUTOR_WORKSPACE
 
 

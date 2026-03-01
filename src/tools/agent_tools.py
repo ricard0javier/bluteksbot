@@ -1,4 +1,8 @@
-"""LangChain @tool wrappers — exposes all bot capabilities as tools for the Deep Agent."""
+"""LangChain @tool wrappers — domain-specific tools for the Deep Agent.
+
+Note: filesystem (ls, read_file, write_file, edit_file, glob, grep), planning (write_todos),
+and subagent delegation (task) are all provided natively by deepagents — do not duplicate them.
+"""
 import logging
 
 from langchain.tools import tool
@@ -29,7 +33,7 @@ def execute_python_tool(code: str) -> str:
 
 @tool
 def execute_shell_tool(command: str) -> str:
-    """Run a bash shell command in the workspace and return its output. Use for file operations, system tasks, or CLI tools."""
+    """Run a bash shell command and return its output. Use for system tasks or CLI tools."""
     from src.tools.code_executor import execute_shell
 
     return execute_shell(command)
@@ -50,75 +54,9 @@ def send_email_tool(to: str, subject: str, body: str) -> str:
     return f"Email sent to {to}." if success else "Failed to send email."
 
 
-@tool
-def calendar_tool(task: str) -> str:
-    """Create, query, or manage calendar events. Describe the action in natural language.
-
-    Args:
-        task: Natural language description of the calendar operation (e.g. 'schedule a meeting tomorrow at 3pm').
-    """
-    from src.llms import client as llm
-    from src.llms.prompts import CALENDAR_AGENT_SYSTEM
-
-    messages = [
-        {"role": "system", "content": CALENDAR_AGENT_SYSTEM},
-        {"role": "user", "content": task},
-    ]
-    try:
-        return llm.chat(messages, model=config.LITELLM_WORKER_MODEL)
-    except Exception:
-        logger.error("calendar_tool failed.", exc_info=True)
-        return "Calendar operation failed."
-
-
-@tool
-def reminder_tool(task: str) -> str:
-    """Set, list, or complete reminders and tasks. Describe the action in natural language.
-
-    Args:
-        task: Natural language description of the reminder (e.g. 'remind me to call John at 5pm').
-    """
-    from src.llms import client as llm
-    from src.llms.prompts import REMINDERS_AGENT_SYSTEM
-
-    messages = [
-        {"role": "system", "content": REMINDERS_AGENT_SYSTEM},
-        {"role": "user", "content": task},
-    ]
-    try:
-        return llm.chat(messages, model=config.LITELLM_WORKER_MODEL)
-    except Exception:
-        logger.error("reminder_tool failed.", exc_info=True)
-        return "Reminder operation failed."
-
-
-@tool
-def process_document_tool(content: str) -> str:
-    """Analyse, summarise, or answer questions about a document. Pass the extracted text content.
-
-    Args:
-        content: The extracted text content of the document to process.
-    """
-    from src.llms import client as llm
-    from src.llms.prompts import FILES_AGENT_SYSTEM
-
-    messages = [
-        {"role": "system", "content": FILES_AGENT_SYSTEM},
-        {"role": "user", "content": content},
-    ]
-    try:
-        return llm.chat(messages, model=config.LITELLM_WORKER_MODEL)
-    except Exception:
-        logger.error("process_document_tool failed.", exc_info=True)
-        return "Document processing failed."
-
-
 ALL_TOOLS = [
     web_search_tool,
     execute_python_tool,
     execute_shell_tool,
     send_email_tool,
-    calendar_tool,
-    reminder_tool,
-    process_document_tool,
 ]
