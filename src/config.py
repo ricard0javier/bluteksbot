@@ -68,6 +68,10 @@ CODE_EXECUTOR_MAX_OUTPUT_CHARS: int = int(
     os.getenv("CODE_EXECUTOR_MAX_OUTPUT_CHARS", "5000")
 )
 
+# ── Concurrency ───────────────────────────────────────────────────────────────
+MAX_CONCURRENT_TASKS: int = int(os.getenv("MAX_CONCURRENT_TASKS", "3"))
+MONGO_COLLECTION_TASKS: str = os.getenv("MONGO_COLLECTION_TASKS", "tasks")
+
 # ── Exponential Backoff ───────────────────────────────────────────────────────
 BACKOFF_BASE_SECONDS: float = float(os.getenv("BACKOFF_BASE_SECONDS", "1.0"))
 BACKOFF_MAX_SECONDS: float = float(os.getenv("BACKOFF_MAX_SECONDS", "60.0"))

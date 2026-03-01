@@ -3,6 +3,7 @@
 import logging
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from uuid import uuid4
 
 import telebot
@@ -10,6 +11,8 @@ import telebot
 from src import config
 from src.persistence.dlq import send_to_dlq
 from src.persistence.idempotency import is_already_processed
+from src.persistence.models import BotTask
+from src.persistence.task_store import create as create_task
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +29,13 @@ def _backoff_sleep(attempt: int) -> None:
 class TelegramConsumer:
     def __init__(self, stop_event: threading.Event) -> None:
         self._stop = stop_event
-        # https://pypi.org/project/pyTelegramBotAPI/
         self._bot = telebot.TeleBot(
             config.TELEGRAM_BOT_TOKEN,
             threaded=False,
+        )
+        self._executor = ThreadPoolExecutor(
+            max_workers=config.MAX_CONCURRENT_TASKS,
+            thread_name_prefix="bot-task",
         )
         self._register_handlers()
         if not config.TELEGRAM_ALLOWED_USER_IDS:
@@ -70,11 +76,24 @@ class TelegramConsumer:
             "has_photo": message.photo is not None,
         }
 
+        task = BotTask(
+            causation_id=causation_id,
+            chat_id=message.chat.id,
+            message_id=message.message_id,
+            input=raw["text"] or "[non-text message]",
+        )
+
         try:
+            task_id = create_task(task)
+            status_msg = self._bot.send_message(message.chat.id, "\u23f3 Working on it\u2026")
+            status_msg_id = status_msg.message_id
+
             orchestrator = Orchestrator(bot=self._bot)
-            orchestrator.handle(message=message, raw=raw)
+            self._executor.submit(
+                _run_task_safe, orchestrator, task_id, status_msg_id, raw
+            )
         except Exception as exc:
-            logger.error("Unrecoverable error processing message.", exc_info=True)
+            logger.error("Failed to dispatch task (chat=%s).", message.chat.id, exc_info=True)
             send_to_dlq(original_message=raw, error=exc)
 
     def run(self) -> None:
@@ -95,3 +114,14 @@ class TelegramConsumer:
                 attempt += 1
             else:
                 attempt = 0
+
+    def shutdown(self) -> None:
+        self._executor.shutdown(wait=False, cancel_futures=True)
+
+
+def _run_task_safe(orchestrator, task_id: str, status_msg_id: int, raw: dict) -> None:
+    """Top-level wrapper so ThreadPoolExecutor exceptions are logged (not silently swallowed)."""
+    try:
+        orchestrator.run_task(task_id=task_id, status_msg_id=status_msg_id, raw=raw)
+    except Exception:
+        logger.error("Unhandled error in background task %s.", task_id, exc_info=True)

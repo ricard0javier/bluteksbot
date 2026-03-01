@@ -1,10 +1,12 @@
 """MongoDB-backed BackendProtocol for conversation history offloading.
 
-Only implements the subset of BackendProtocol used by SummarizationMiddleware:
-download_files, write, edit (and their async counterparts).
+Implements the subset of BackendProtocol used by SummarizationMiddleware
+(download_files, write, edit) plus glob_info/ls_info so CompositeBackend
+can enumerate virtual files without raising NotImplementedError.
 """
 
 import asyncio
+import fnmatch
 import logging
 from datetime import UTC, datetime
 
@@ -12,6 +14,7 @@ from deepagents.backends.protocol import (
     BackendProtocol,
     EditResult,
     FileDownloadResponse,
+    FileInfo,
     WriteResult,
 )
 from pymongo.collection import Collection
@@ -85,3 +88,39 @@ class MongoDBBackend(BackendProtocol):
         replace_all: bool = False,  # noqa: FBT001, FBT002
     ) -> EditResult:
         return await asyncio.to_thread(self.edit, file_path, old_string, new_string, replace_all)
+
+    # ── listing ───────────────────────────────────────────────────────────────
+
+    def ls_info(self, path: str) -> list[FileInfo]:
+        """Return all stored paths that are direct children of *path*."""
+        prefix = path.rstrip("/") + "/"
+        docs = self._col.find({"_id": {"$regex": f"^{prefix}[^/]+$"}}, {"updated_at": 1, "content": 1})
+        return [
+            FileInfo(
+                path=doc["_id"],
+                is_dir=False,
+                size=len((doc.get("content") or "").encode()),
+                modified_at=doc.get("updated_at", ""),
+            )
+            for doc in docs
+        ]
+
+    async def als_info(self, path: str) -> list[FileInfo]:
+        return await asyncio.to_thread(self.ls_info, path)
+
+    def glob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:
+        """Return all stored paths matching *pattern* (fnmatch-style)."""
+        docs = self._col.find({}, {"updated_at": 1, "content": 1})
+        return [
+            FileInfo(
+                path=doc["_id"],
+                is_dir=False,
+                size=len((doc.get("content") or "").encode()),
+                modified_at=doc.get("updated_at", ""),
+            )
+            for doc in docs
+            if fnmatch.fnmatch(doc["_id"], pattern)
+        ]
+
+    async def aglob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:
+        return await asyncio.to_thread(self.glob_info, pattern, path)
