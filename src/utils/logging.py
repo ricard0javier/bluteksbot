@@ -18,6 +18,7 @@ _LEVEL_COLORS = {
 class _ColorFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         color = _LEVEL_COLORS.get(record.levelno, "")
+        record = logging.makeLogRecord(record.__dict__)
         record.levelname = f"{color}{record.levelname}{_RESET}"
         record.msg = f"{color}{record.msg}{_RESET}"
         return super().format(record)
@@ -30,12 +31,14 @@ def setup_logging() -> None:
     level = getattr(logging, config.LOG_LEVEL.upper(), logging.INFO)
     fmt = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
+    plain_fmt = logging.Formatter(fmt)
+
     console = logging.StreamHandler()
-    if config.ENVIRONMENT == "development":
-        console.setFormatter(_ColorFormatter(fmt))
+    console.setFormatter(_ColorFormatter(fmt) if config.ENVIRONMENT == "development" else plain_fmt)
 
-    handlers: list[logging.Handler] = [console, logging.FileHandler(config.LOG_FILE)]
+    file_handler = logging.FileHandler(config.LOG_FILE)
+    file_handler.setFormatter(plain_fmt)
 
-    logging.basicConfig(level=level, format=fmt, handlers=handlers)
+    logging.basicConfig(level=level, handlers=[console, file_handler])
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("telegram").setLevel(logging.WARNING)
