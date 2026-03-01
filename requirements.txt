@@ -28,6 +28,7 @@ APScheduler>=3.10.0,<4.0.0
 # LangGraph / Deep Agents / LangMem
 langgraph>=1.0.10
 langgraph-checkpoint-mongodb>=0.3.1
+langgraph-store-mongodb>=0.2.0
 langchain>=1.2.10
 langchain-openai>=1.1.10
 langmem>=0.0.30

@@ -31,12 +31,13 @@ def build_agent():
 
     from deepagents import create_deep_agent
     from langchain.chat_models import init_chat_model
+    from langchain_openai import OpenAIEmbeddings
     from langgraph.checkpoint.mongodb import MongoDBSaver
+    from langgraph.store.mongodb import MongoDBStore, create_vector_index_config
     from langmem import create_manage_memory_tool, create_search_memory_tool
 
     from src.llms.prompts import ORCHESTRATOR_SYSTEM
     from src.persistence.client import get_client, get_db
-    from src.persistence.mongo_store import MongoDBStore
     from src.tools.agent_tools import ALL_TOOLS
 
     checkpointer = MongoDBSaver(
@@ -44,8 +45,21 @@ def build_agent():
         db_name=config.MONGO_DB,
     )
 
+    embeddings = OpenAIEmbeddings(
+        model=config.LITELLM_EMBEDDING_MODEL,
+        base_url=f"{config.LITELLM_BASE_URL}/v1",
+        api_key=config.LITELLM_API_KEY,
+    )
+
+    index_config = create_vector_index_config(
+        embed=embeddings,
+        dims=config.EMBEDDING_DIMENSION,
+        fields=["content"],
+    )
+
     store = MongoDBStore(
         collection=get_db()[config.MONGO_COLLECTION_MEMORY],
+        index_config=index_config,
     )
 
     model = init_chat_model(

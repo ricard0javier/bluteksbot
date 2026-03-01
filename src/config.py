@@ -47,7 +47,6 @@ LITELLM_TEMPERATURE: float = float(os.getenv("LITELLM_TEMPERATURE", "0.2"))
 # ── Embeddings / Vector Search ────────────────────────────────────────────────
 EMBEDDING_DIMENSION: int = int(os.getenv("EMBEDDING_DIMENSION", "1536"))
 MEMORY_TOP_K: int = int(os.getenv("MEMORY_TOP_K", "5"))
-MEMORY_SCORE_THRESHOLD: float = float(os.getenv("MEMORY_SCORE_THRESHOLD", "0.75"))
 
 # ── Tools ─────────────────────────────────────────────────────────────────────
 TAVILY_API_KEY: str = os.getenv("TAVILY_API_KEY", "")

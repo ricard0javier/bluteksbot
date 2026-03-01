@@ -27,3 +27,5 @@ def close_client() -> None:
         _client.close()
         _client = None
         logger.info("MongoDB client closed.")
+
+

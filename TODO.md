@@ -1,1 +1,5 @@
 - [ ] use [Sandbox as tool pattern](https://docs.langchain.com/oss/python/deepagents/sandboxes#sandbox-as-tool-pattern) or [Agent in sandbox pattern](https://docs.langchain.com/oss/python/deepagents/sandboxes#agent-in-sandbox-pattern) as a replacement for [code_executor.py](src/tools/code_executor.py)
+- [ ] Change to use MongoDB community for development when GA is ready to support Vector Search
+- [ ] Add support for MCPo server to load tools dynamically
+- [ ] Allow the binding of tools to agents using configuration files
+- [ ] 
