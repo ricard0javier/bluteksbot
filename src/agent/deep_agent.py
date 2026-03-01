@@ -30,6 +30,7 @@ def build_agent():
     _configure_langsmith()
 
     from deepagents import create_deep_agent
+    from deepagents.backends import FilesystemBackend
     from langchain.chat_models import init_chat_model
     from langchain_openai import OpenAIEmbeddings
     from langgraph.checkpoint.mongodb import MongoDBSaver
@@ -81,6 +82,10 @@ def build_agent():
         system_prompt=ORCHESTRATOR_SYSTEM,
         checkpointer=checkpointer,
         store=store,
+        backend=FilesystemBackend(
+            root_dir=config.DEEP_AGENT_WORKSPACE,
+            virtual_mode=config.ENVIRONMENT == "development",
+        ),
     )
 
     logger.info("Deep Agent built (model=%s).", config.LITELLM_WORKER_MODEL)

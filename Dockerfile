@@ -24,7 +24,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 FROM deps AS final
 COPY src/ ./src/
 
-ENV CODE_EXECUTOR_WORKSPACE=/workspace
-RUN mkdir -p logs "${CODE_EXECUTOR_WORKSPACE}"
+ENV DEEP_AGENT_WORKSPACE=/workspace/agent_files
+RUN mkdir -p logs "${DEEP_AGENT_WORKSPACE}"
 
 CMD ["python", "-m", "src.main"]

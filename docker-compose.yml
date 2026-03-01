@@ -2,8 +2,6 @@ services:
   bot:
     build: .
     env_file: .env
-    environment:
-      CODE_EXECUTOR_WORKSPACE: ${CODE_EXECUTOR_WORKSPACE:-/workspace}
     depends_on:
       mongo:
         condition: service_healthy
@@ -14,7 +12,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./logs:/app/logs
-      - agent_workspace:/workspace
+      - agent_files:/workspace/agent_files
 
   mongo:
     image: mongodb/mongodb-atlas-local
@@ -84,8 +82,8 @@ services:
 
 volumes:
   mongo_data:
-  agent_workspace:
   litellm_pg_data:
+  agent_files:
 
 networks:
   backend:

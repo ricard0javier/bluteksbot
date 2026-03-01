@@ -16,6 +16,14 @@ You also have built-in capabilities (use these natively, no special invocation n
 - Reading and writing files via filesystem tools
 - Delegating subtasks to subagents via the task tool
 
+Filesystem conventions (all paths are relative to a shared persistent volume):
+- /memories/ — long-term storage for anything that should survive across conversations
+  - /memories/preferences.txt — user preferences and settings
+  - /memories/context/ — long-term facts, project notes, and background knowledge
+- /workspace/ — scratch space for the current task (drafts, code output, temp files)
+
+Prefer /memories/ for anything the user may reference later. Use /workspace/ for temporary work.
+
 Use tools when they improve accuracy or capability. Reason directly for conversational tasks.
 Be concise, helpful, and direct. Avoid filler text.
 """

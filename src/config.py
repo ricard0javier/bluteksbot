@@ -11,7 +11,7 @@ load_dotenv()
 APP_NAME: str = os.getenv("APP_NAME", "bluteksbot")
 LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 LOG_FILE: str = os.getenv("LOG_FILE", "logs/bluteksbot.log")
-ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+ENVIRONMENT: str = os.getenv("ENVIRONMENT", "production")
 
 # ── Telegram ──────────────────────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
@@ -61,8 +61,9 @@ EMAIL_FROM: str = os.getenv("EMAIL_FROM", "")
 CALENDAR_TIMEZONE: str = os.getenv("CALENDAR_TIMEZONE", "UTC")
 
 CODE_EXECUTOR_TIMEOUT: int = int(os.getenv("CODE_EXECUTOR_TIMEOUT", "60"))
-CODE_EXECUTOR_WORKSPACE: str = os.getenv("CODE_EXECUTOR_WORKSPACE", "/workspace")
-CODE_EXECUTOR_MAX_OUTPUT_CHARS: int = int(os.getenv("CODE_EXECUTOR_MAX_OUTPUT_CHARS", "5000"))
+CODE_EXECUTOR_MAX_OUTPUT_CHARS: int = int(
+    os.getenv("CODE_EXECUTOR_MAX_OUTPUT_CHARS", "5000")
+)
 
 # ── Exponential Backoff ───────────────────────────────────────────────────────
 BACKOFF_BASE_SECONDS: float = float(os.getenv("BACKOFF_BASE_SECONDS", "1.0"))
@@ -70,6 +71,7 @@ BACKOFF_MAX_SECONDS: float = float(os.getenv("BACKOFF_MAX_SECONDS", "60.0"))
 BACKOFF_MULTIPLIER: float = float(os.getenv("BACKOFF_MULTIPLIER", "2.0"))
 
 # ── LangGraph / Deep Agents / LangMem ────────────────────────────────────────
+DEEP_AGENT_WORKSPACE: str = os.getenv("DEEP_AGENT_WORKSPACE", "/workspace/agent_files")
 LANGMEM_NAMESPACE: str = os.getenv("LANGMEM_NAMESPACE", f"{APP_NAME},memories")
 
 # ── LangSmith (optional observability) ───────────────────────────────────────
