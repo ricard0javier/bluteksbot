@@ -1,18 +1,27 @@
 """Orchestrator — routes Telegram messages through the Deep Agent with streaming progress."""
 
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
 import telebot
 
 from src.agent.deep_agent import build_agent
-from src.persistence import event_store, task_store
-from src.persistence.models import BotTask, Event, EventAggregate, TaskStatus
+from src.persistence import event_store, job_store, task_store
+from src.persistence.models import BotTask, Event, EventAggregate, JobStatus, TaskStatus
 
 logger = logging.getLogger(__name__)
 
 _THINKING_EMOJI = "\u23f3"  # ⏳
 _DONE_EMOJI = "\u2705"      # ✅
+
+
+def _send_safe(bot, chat_id: int, text: str) -> None:
+    """Send with Markdown; fall back to plain text if Telegram rejects the entities."""
+    try:
+        bot.send_message(chat_id, text, parse_mode="Markdown")
+    except Exception:
+        bot.send_message(chat_id, text)
 
 
 class Orchestrator:
@@ -34,7 +43,7 @@ class Orchestrator:
                 chat_id=chat_id,
                 user_text=user_text,
             )
-            self._bot.send_message(chat_id, reply, parse_mode="Markdown")
+            _send_safe(self._bot, chat_id, reply)
             task_store.update_status(task_id, TaskStatus.DONE, result=reply[:500])
             self._store_event(raw, reply)
         except Exception as exc:
@@ -49,6 +58,77 @@ class Orchestrator:
                 self._bot.delete_message(chat_id, status_msg_id)
             except Exception:
                 pass
+
+    def run_autonomous(
+        self,
+        task_prompt: str,
+        chat_id: int,
+        job_id: str,
+        job_name: str,
+        execution_id: str,
+    ) -> None:
+        """Execute a scheduled job autonomously: no streaming, single result notification.
+
+        Sends one Telegram message on completion (success or unrecoverable error).
+        All state is persisted to MongoDB via task_store and job_store.
+        """
+        now = datetime.now(timezone.utc)
+        task = BotTask(
+            causation_id=f"cron-{job_id}-{now.isoformat()}",
+            chat_id=chat_id,
+            input=task_prompt,
+        )
+        task_id = task_store.create(task)
+        task_store.update_status(task_id, TaskStatus.RUNNING)
+        job_store.update_execution(
+            execution_id, JobStatus.RUNNING, task_id=task_id, started_at=now
+        )
+
+        thread_id = f"cron-{job_id}"  # isolated LangGraph context per job
+        try:
+            for _ in self._agent.stream(
+                {"messages": [{"role": "user", "content": task_prompt}]},
+                config={"configurable": {"thread_id": thread_id}},
+                stream_mode="updates",
+            ):
+                pass  # consume stream without streaming progress to Telegram
+
+            reply = _extract_final_reply(self._agent, thread_id)
+            self._bot.send_message(
+                chat_id,
+                f"\u2705 *Scheduled job '{job_name}' completed*",
+                parse_mode="Markdown",
+            )
+            self._bot.send_message(chat_id, reply)
+            task_store.update_status(task_id, TaskStatus.DONE, result=reply[:500])
+            job_store.update_execution(
+                execution_id,
+                JobStatus.DONE,
+                result=reply[:500],
+                completed_at=datetime.now(timezone.utc),
+            )
+            logger.info("Autonomous job '%s' (%s) completed.", job_name, job_id)
+        except Exception as exc:
+            logger.error(
+                "Autonomous job '%s' (%s) failed: %s", job_name, job_id, exc, exc_info=True
+            )
+            err_preview = str(exc)[:300]
+            try:
+                self._bot.send_message(
+                    chat_id,
+                    f"\u26a0\ufe0f *Scheduled job '{job_name}' failed*",
+                    parse_mode="Markdown",
+                )
+                self._bot.send_message(chat_id, err_preview)
+            except Exception:
+                logger.warning("Could not send error notification to chat=%s.", chat_id)
+            task_store.update_status(task_id, TaskStatus.FAILED, error=str(exc))
+            job_store.update_execution(
+                execution_id,
+                JobStatus.FAILED,
+                error=str(exc)[:500],
+                completed_at=datetime.now(timezone.utc),
+            )
 
     def _stream_with_progress(
         self,
@@ -78,7 +158,7 @@ class Orchestrator:
                 progress_text = _format_progress(steps)
                 _edit_status(progress_text)
 
-        return _extract_final_reply(self._agent, chat_id)
+        return _extract_final_reply(self._agent, str(chat_id))
 
     def _store_event(self, raw: dict[str, Any], reply: str) -> None:
         try:
@@ -123,10 +203,10 @@ def _format_progress(steps: list[str]) -> str:
     return "\n".join(recent)
 
 
-def _extract_final_reply(agent, chat_id: int) -> str:
+def _extract_final_reply(agent, thread_id: str) -> str:
     """Get the last assistant message from checkpoint state."""
     try:
-        state = agent.get_state(config={"configurable": {"thread_id": str(chat_id)}})
+        state = agent.get_state(config={"configurable": {"thread_id": thread_id}})
         messages = state.values.get("messages", [])
         for msg in reversed(messages):
             content = getattr(msg, "content", None)

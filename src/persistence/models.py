@@ -18,7 +18,7 @@ class BotTask(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()), alias="_id")
     causation_id: str
     chat_id: int
-    message_id: int
+    message_id: int = 0
     status: TaskStatus = TaskStatus.PENDING
     input: str
     progress: list[str] = []
@@ -26,6 +26,47 @@ class BotTask(BaseModel):
     error: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    model_config = {"populate_by_name": True}
+
+
+class JobStatus(str, Enum):
+    CLAIMED = "claimed"
+    RUNNING = "running"
+    DONE = "done"
+    FAILED = "failed"
+
+
+class ScheduledJob(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid4()), alias="_id")
+    name: str
+    cron_expr: str
+    task_prompt: str
+    chat_id: int
+    enabled: bool = True
+    created_by: str  # "config" or "user:{chat_id}"
+    last_run_at: Optional[datetime] = None
+    next_run_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    model_config = {"populate_by_name": True}
+
+
+class JobExecution(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid4()), alias="_id")
+    job_id: str
+    job_name: str
+    chat_id: int
+    scheduled_fire_time: datetime
+    claimed_by: str  # "hostname:pid" — the atomic lock field
+    claimed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    status: JobStatus = JobStatus.CLAIMED
+    task_id: Optional[str] = None
+    result: Optional[str] = None
+    error: Optional[str] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
 
     model_config = {"populate_by_name": True}
 

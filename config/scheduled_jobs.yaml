@@ -1,0 +1,32 @@
+# Scheduled Jobs Configuration
+#
+# Jobs defined here are upserted into MongoDB on every agent startup (idempotent).
+# They are identified by a stable ID derived from their name, so renaming a job
+# here will create a new entry rather than updating the old one.
+#
+# Fields:
+#   name      - Unique human-readable job name (used as stable ID key)
+#   cron      - Standard 5-field cron expression (minute hour dom month dow)
+#   chat_id   - Telegram chat ID that receives the result notifications
+#   prompt    - Full task description sent to the agent on each run
+#   enabled   - true/false (default: true)
+#
+# Cron examples:
+#   "0 8 * * *"     → every day at 08:00 UTC
+#   "0 9 * * 1"     → every Monday at 09:00 UTC
+#   "*/30 * * * *"  → every 30 minutes
+#   "0 0 1 * *"     → first day of every month at midnight UTC
+#
+# To disable a job without deleting it, set enabled: false.
+# To schedule jobs dynamically, ask the bot: "schedule a daily report at 8 AM".
+
+jobs:
+  - name: daily-health-check
+    # run every minute
+    cron: "0 */8 * * *"
+    chat_id: 7653046564 # replace with your Telegram chat ID
+    prompt: >
+      Run a brief system health check: confirm you are operational, summarize any
+      relevant news or updates from the last 24 hours using web search, and report
+      the current UTC time. Keep the response concise.
+    enabled: true # set to true and update chat_id to activate

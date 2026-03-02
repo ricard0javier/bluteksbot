@@ -27,12 +27,11 @@ def _backoff_sleep(attempt: int) -> None:
 
 
 class TelegramConsumer:
-    def __init__(self, stop_event: threading.Event) -> None:
+    def __init__(
+        self, stop_event: threading.Event, bot: telebot.TeleBot | None = None
+    ) -> None:
         self._stop = stop_event
-        self._bot = telebot.TeleBot(
-            config.TELEGRAM_BOT_TOKEN,
-            threaded=False,
-        )
+        self._bot = bot or telebot.TeleBot(config.TELEGRAM_BOT_TOKEN, threaded=False)
         self._executor = ThreadPoolExecutor(
             max_workers=config.MAX_CONCURRENT_TASKS,
             thread_name_prefix="bot-task",

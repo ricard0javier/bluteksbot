@@ -4,7 +4,10 @@ import logging
 import signal
 import threading
 
+import telebot
+
 from src import config
+from src.scheduler.service import SchedulerService
 from src.telegram.consumer import TelegramConsumer
 from src.utils.logging import setup_logging
 
@@ -13,7 +16,9 @@ class Application:
     def __init__(self) -> None:
         self.stop_event = threading.Event()
         self._threads: list[threading.Thread] = []
-        self._consumer = TelegramConsumer(stop_event=self.stop_event)
+        self._bot = telebot.TeleBot(config.TELEGRAM_BOT_TOKEN, threaded=False)
+        self._consumer = TelegramConsumer(stop_event=self.stop_event, bot=self._bot)
+        self._scheduler = SchedulerService(bot=self._bot)
 
     def _register_signals(self) -> None:
         signal.signal(signal.SIGTERM, self._handle_signal)
@@ -31,6 +36,8 @@ class Application:
     def start(self) -> None:
         self._register_signals()
         logging.info("Starting %s.", config.APP_NAME)
+
+        self._scheduler.start()
 
         self._spawn(
             threading.Thread(
@@ -54,6 +61,7 @@ class Application:
                     break
             self.stop_event.wait(timeout=5)
 
+        self._scheduler.stop()
         for thread in self._threads:
             thread.join(timeout=10)
         logging.info("%s stopped.", config.APP_NAME)

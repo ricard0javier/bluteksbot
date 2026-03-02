@@ -24,6 +24,7 @@ pytesseract>=0.3.10
 
 # Scheduling (reminders / calendar) — keep 3.x; APScheduler 4.x is still alpha
 APScheduler>=3.10.0,<4.0.0
+PyYAML>=6.0.0
 
 # LangGraph / Deep Agents / LangMem
 langgraph>=1.0.10

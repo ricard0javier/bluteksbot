@@ -72,6 +72,19 @@ CODE_EXECUTOR_MAX_OUTPUT_CHARS: int = int(
 MAX_CONCURRENT_TASKS: int = int(os.getenv("MAX_CONCURRENT_TASKS", "3"))
 MONGO_COLLECTION_TASKS: str = os.getenv("MONGO_COLLECTION_TASKS", "tasks")
 
+# ── Scheduler ─────────────────────────────────────────────────────────────────
+MONGO_COLLECTION_SCHEDULED_JOBS: str = os.getenv(
+    "MONGO_COLLECTION_SCHEDULED_JOBS", "scheduled_jobs"
+)
+MONGO_COLLECTION_JOB_EXECUTIONS: str = os.getenv(
+    "MONGO_COLLECTION_JOB_EXECUTIONS", "job_executions"
+)
+MONGO_COLLECTION_APSCHEDULER: str = os.getenv(
+    "MONGO_COLLECTION_APSCHEDULER", "apscheduler_jobs"
+)
+SCHEDULER_CONFIG_FILE: str = os.getenv("SCHEDULER_CONFIG_FILE", "config/scheduled_jobs.yaml")
+SCHEDULER_TIMEZONE: str = os.getenv("SCHEDULER_TIMEZONE", CALENDAR_TIMEZONE)
+
 # ── Exponential Backoff ───────────────────────────────────────────────────────
 BACKOFF_BASE_SECONDS: float = float(os.getenv("BACKOFF_BASE_SECONDS", "1.0"))
 BACKOFF_MAX_SECONDS: float = float(os.getenv("BACKOFF_MAX_SECONDS", "60.0"))
