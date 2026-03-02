@@ -39,8 +39,10 @@ MONGO_COLLECTION_CONV_HISTORY: str = os.getenv(
 # ── LiteLLM ───────────────────────────────────────────────────────────────────
 LITELLM_BASE_URL: str = os.getenv("LITELLM_BASE_URL", "http://localhost:4000")
 LITELLM_API_KEY: str = os.getenv("LITELLM_API_KEY", "sk-dummy")
-LITELLM_ORCHESTRATOR_MODEL: str = os.getenv("LITELLM_ORCHESTRATOR_MODEL", "gpt-4o-mini")
-LITELLM_WORKER_MODEL: str = os.getenv("LITELLM_WORKER_MODEL", "gpt-4o-mini")
+LITELLM_ORCHESTRATOR_MODEL: str = os.getenv(
+    "LITELLM_ORCHESTRATOR_MODEL", "claude-sonnet-4-5"
+)
+LITELLM_WORKER_MODEL: str = os.getenv("LITELLM_WORKER_MODEL", "minimax-m2")
 LITELLM_EMBEDDING_MODEL: str = os.getenv(
     "LITELLM_EMBEDDING_MODEL", "text-embedding-3-small"
 )
@@ -82,7 +84,9 @@ MONGO_COLLECTION_JOB_EXECUTIONS: str = os.getenv(
 MONGO_COLLECTION_APSCHEDULER: str = os.getenv(
     "MONGO_COLLECTION_APSCHEDULER", "apscheduler_jobs"
 )
-SCHEDULER_CONFIG_FILE: str = os.getenv("SCHEDULER_CONFIG_FILE", "config/scheduled_jobs.yaml")
+SCHEDULER_CONFIG_FILE: str = os.getenv(
+    "SCHEDULER_CONFIG_FILE", "config/scheduled_jobs.yaml"
+)
 SCHEDULER_TIMEZONE: str = os.getenv("SCHEDULER_TIMEZONE", CALENDAR_TIMEZONE)
 
 # ── Exponential Backoff ───────────────────────────────────────────────────────
