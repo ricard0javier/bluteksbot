@@ -29,4 +29,18 @@ jobs:
       Run a brief system health check: confirm you are operational, summarize any
       relevant news or updates from the last 24 hours using web search, and report
       the current UTC time. Keep the response concise.
-    enabled: true # set to true and update chat_id to activate
+
+      IMPORTANT: Format the response for Telegram (no Markdown):
+      - Do NOT use asterisks (*), underscores (_), backticks (`), or other Markdown formatting
+      - Use plain text with simple bullet points using dashes or dots
+      - For news items, ALWAYS include the source URL at the end of each item
+      - Example: "Headline here - https://example.com"
+    enabled: false
+  - name: daily-news-summary
+    cron: "0 8 * * *"
+    chat_id: 7653046564 # replace with your Telegram chat ID
+    prompt: >
+      Run a brief system health check: confirm you are operational, summarize any
+      relevant news or updates from the last 24 hours using web search, and report
+      the current UTC time. Keep the response concise.
+    enabled: false # set to true and update chat_id to activate

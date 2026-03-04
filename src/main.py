@@ -5,8 +5,10 @@ import signal
 import threading
 
 import telebot
+import uvicorn
 
 from src import config
+from src.api.server import app as dashboard_app
 from src.scheduler.service import SchedulerService
 from src.telegram.consumer import TelegramConsumer
 from src.utils.logging import setup_logging
@@ -46,6 +48,20 @@ class Application:
                 daemon=True,
             )
         )
+
+        if config.DASHBOARD_ENABLED:
+            uvi_config = uvicorn.Config(
+                dashboard_app,
+                host="0.0.0.0",
+                port=config.DASHBOARD_PORT,
+                log_level="warning",
+            )
+            uvi_server = uvicorn.Server(uvi_config)
+            uvi_server.config.install_signal_handlers = False
+            self._spawn(
+                threading.Thread(target=uvi_server.run, name="dashboard", daemon=True)
+            )
+            logging.info("Dashboard running on http://0.0.0.0:%s", config.DASHBOARD_PORT)
 
         self._monitor()
 

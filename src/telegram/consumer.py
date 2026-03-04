@@ -37,8 +37,20 @@ class TelegramConsumer:
             thread_name_prefix="bot-task",
         )
         self._register_handlers()
+        self._sync_command_menu()
         if not config.TELEGRAM_ALLOWED_USER_IDS:
             logger.warning("No allowed user IDs configured — allowing all users.")
+
+    def _sync_command_menu(self) -> None:
+        """Register commands with Telegram so the native menu and autocomplete work."""
+        from src.telegram.commands import registry
+
+        commands = [
+            telebot.types.BotCommand(info.command.lstrip("/"), info.description)
+            for info in registry.list_commands()
+        ]
+        self._bot.set_my_commands(commands)
+        logger.info("Telegram command menu synced (%d commands).", len(commands))
 
     def _register_handlers(self) -> None:
         @self._bot.message_handler(
@@ -47,6 +59,28 @@ class TelegramConsumer:
         def handle_message(message: telebot.types.Message) -> None:
             self._process(message)
 
+        @self._bot.callback_query_handler(func=lambda call: call.data.startswith("model:"))
+        def handle_model_callback(call: telebot.types.CallbackQuery) -> None:
+            from src.persistence.preferences_store import get_model, set_model
+
+            chat_id = call.message.chat.id
+            chosen = call.data.split(":", 1)[1]
+            current = get_model(chat_id)
+
+            if chosen == current:
+                self._bot.answer_callback_query(call.id, f"{chosen} is already active.")
+                return
+
+            set_model(chat_id, chosen)
+            logger.info("Model switched via button (chat=%s): %s → %s.", chat_id, current, chosen)
+            self._bot.answer_callback_query(call.id, f"Switched to {chosen} ✓")
+            self._bot.edit_message_text(
+                f"*Active model:* `{chosen}` ✓",
+                chat_id=chat_id,
+                message_id=call.message.message_id,
+                parse_mode="Markdown",
+            )
+
     def _is_allowed(self, user_id: int) -> bool:
         if not config.TELEGRAM_ALLOWED_USER_IDS:
             return True
@@ -54,6 +88,7 @@ class TelegramConsumer:
 
     def _process(self, message: telebot.types.Message) -> None:
         from src.agent.orchestrator import Orchestrator
+        from src.telegram.commands import registry
 
         user_id = message.from_user.id if message.from_user else 0
         causation_id = f"tg-{message.chat.id}-{message.message_id}"
@@ -61,6 +96,10 @@ class TelegramConsumer:
         if not self._is_allowed(user_id):
             logger.warning("Unauthorised user_id=%s — ignoring.", user_id)
             return
+
+        if message.text and message.text.startswith("/"):
+            if registry.dispatch(message, self._bot):
+                return
 
         if is_already_processed(causation_id):
             return
@@ -87,7 +126,8 @@ class TelegramConsumer:
             status_msg = self._bot.send_message(message.chat.id, "\u23f3 Working on it\u2026")
             status_msg_id = status_msg.message_id
 
-            orchestrator = Orchestrator(bot=self._bot)
+            from src.persistence.preferences_store import get_model
+            orchestrator = Orchestrator(bot=self._bot, model=get_model(message.chat.id))
             self._executor.submit(
                 _run_task_safe, orchestrator, task_id, status_msg_id, raw
             )

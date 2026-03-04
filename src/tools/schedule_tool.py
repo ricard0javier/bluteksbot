@@ -81,11 +81,27 @@ def list_cron_jobs(config: RunnableConfig) -> str:
     return "\n".join(lines)
 
 
+def _resolve_job(job_id: str, chat_id: int):
+    """Return a ScheduledJob by exact or prefix ID, scoped to chat_id. Returns (job, error_str)."""
+    job = job_store.get_job(job_id)
+    if job is None:
+        jobs = job_store.list_jobs(chat_id=chat_id, enabled_only=False)
+        matches = [j for j in jobs if j.id.startswith(job_id)]
+        if len(matches) == 1:
+            job = matches[0]
+        elif len(matches) > 1:
+            return None, f"Ambiguous ID prefix '{job_id}' matches multiple jobs. Use the full ID."
+    if job is None:
+        return None, f"No job found with ID '{job_id}'."
+    if job.chat_id != chat_id:
+        return None, "You can only manage your own scheduled jobs."
+    return job, None
+
+
 @tool
 def cancel_cron_job(job_id: str, config: RunnableConfig) -> str:
-    """Cancel (disable) a scheduled cron job by its ID.
+    """Disable a scheduled cron job by its ID. The record is kept but will no longer fire.
 
-    The job record is kept in MongoDB for history but will no longer fire.
     Use list_cron_jobs to find the job ID.
 
     Args:
@@ -94,30 +110,42 @@ def cancel_cron_job(job_id: str, config: RunnableConfig) -> str:
     from src.scheduler.service import get_scheduler
 
     chat_id = _chat_id(config)
-
-    # Support short IDs: look up by prefix if not an exact match
-    job = job_store.get_job(job_id)
-    if job is None:
-        jobs = job_store.list_jobs(chat_id=chat_id, enabled_only=False)
-        matches = [j for j in jobs if j.id.startswith(job_id)]
-        if len(matches) == 1:
-            job = matches[0]
-        elif len(matches) > 1:
-            return f"Ambiguous ID prefix '{job_id}' matches multiple jobs. Please use the full ID."
-
-    if job is None:
-        return f"No job found with ID '{job_id}'."
-    if job.chat_id != chat_id:
-        return "You can only cancel your own scheduled jobs."
-
-    job_store.disable_job(job.id)
+    job, err = _resolve_job(job_id, chat_id)
+    if err:
+        return err
 
     scheduler = get_scheduler()
-    if scheduler:
-        scheduler.unregister_job(job.id)
+    ok = scheduler.disable_job(job.id) if scheduler else job_store.disable_job(job.id)
+    if not ok:
+        return f"Job '{job.name}' could not be disabled (already disabled or not found)."
 
-    logger.info("User cancelled job '%s' (%s, chat=%s).", job.name, job.id, chat_id)
-    return f"Scheduled job *'{job.name}'* (`{job.id[:8]}`) has been cancelled."
+    logger.info("User disabled job '%s' (%s, chat=%s).", job.name, job.id, chat_id)
+    return f"Scheduled job *'{job.name}'* (`{job.id[:8]}`) has been disabled."
 
 
-SCHEDULE_TOOLS = [schedule_cron_job, list_cron_jobs, cancel_cron_job]
+@tool
+def enable_cron_job(job_id: str, config: RunnableConfig) -> str:
+    """Re-enable a previously disabled scheduled cron job by its ID.
+
+    Use list_cron_jobs to find the job ID.
+
+    Args:
+        job_id: The full job ID or the first 8 characters shown by list_cron_jobs.
+    """
+    from src.scheduler.service import get_scheduler
+
+    chat_id = _chat_id(config)
+    job, err = _resolve_job(job_id, chat_id)
+    if err:
+        return err
+
+    scheduler = get_scheduler()
+    ok = scheduler.enable_job(job.id) if scheduler else job_store.enable_job(job.id)
+    if not ok:
+        return f"Job '{job.name}' could not be enabled (not found)."
+
+    logger.info("User enabled job '%s' (%s, chat=%s).", job.name, job.id, chat_id)
+    return f"Scheduled job *'{job.name}'* (`{job.id[:8]}`) is now enabled and active."
+
+
+SCHEDULE_TOOLS = [schedule_cron_job, list_cron_jobs, cancel_cron_job, enable_cron_job]

@@ -86,6 +86,22 @@ class SchedulerService:
         except Exception:
             pass  # already absent — fine
 
+    def enable_job(self, job_id: str) -> bool:
+        """Enable a job in MongoDB and register it with APScheduler. Returns False if not found."""
+        if not job_store.enable_job(job_id):
+            return False
+        job = job_store.get_job(job_id)
+        if job:
+            self.register_job(job)
+        return True
+
+    def disable_job(self, job_id: str) -> bool:
+        """Disable a job in MongoDB and remove it from APScheduler. Returns False if not found."""
+        if not job_store.disable_job(job_id):
+            return False
+        self.unregister_job(job_id)
+        return True
+
     def _load_all_jobs(self, extra_jobs: list[ScheduledJob] | None = None) -> None:
         """Load all enabled MongoDB jobs and register with APScheduler.
 

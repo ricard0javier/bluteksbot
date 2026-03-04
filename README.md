@@ -105,6 +105,28 @@ make dev
 
 ---
 
+## Telegram commands
+
+Slash commands are intercepted **before** the LLM — instant, no token cost.
+
+| Command | Description |
+|---|---|
+| `/clean` | Clear conversation thread, checkpoints, and summarization history |
+| `/model` | Show active model and available options |
+| `/model <n or name>` | Switch to a different LLM model (persisted per chat) |
+| `/commands` | List all available commands |
+
+Available models are controlled by `AVAILABLE_MODELS` in `.env` (comma-separated). The selection is persisted per chat in MongoDB and survives restarts.
+
+### Adding a new command
+
+1. Open `src/telegram/commands/handlers.py`
+2. Add a `@registry.register("/mycommand", "Description")` decorated function inside `register_all`
+
+No other wiring needed.
+
+---
+
 ## Agent routing
 
 ```
@@ -170,7 +192,7 @@ make clean   # remove caches + volumes
 
 > This project was scaffolded and built in a single day using [Cursor IDE](https://cursor.sh) — a good example of what AI-assisted development can achieve when paired with the right frameworks.
 
-## Adding a new tool
+## Adding a new agent tool
 
 1. Create (or add to) `src/tools/agent_tools.py` with a `@tool` decorated function
 2. Add it to the `ALL_TOOLS` list at the bottom of that file

@@ -35,6 +35,9 @@ langchain-openai>=1.1.10
 langmem>=0.0.30
 deepagents>=0.4.4
 
+# Dashboard
+fastapi[standard]>=0.135.1
+
 # Dev / Testing
 pytest>=9.0.0
 pytest-mock>=3.14.0

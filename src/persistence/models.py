@@ -12,6 +12,16 @@ class TaskStatus(str, Enum):
     RUNNING = "running"
     DONE = "done"
     FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class TaskStep(BaseModel):
+    tool: str
+    node: str = ""
+    args_preview: Optional[str] = None
+    output_preview: Optional[str] = None
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    duration_ms: Optional[int] = None
 
 
 class BotTask(BaseModel):
@@ -22,6 +32,7 @@ class BotTask(BaseModel):
     status: TaskStatus = TaskStatus.PENDING
     input: str
     progress: list[str] = []
+    steps: list[TaskStep] = []
     result: Optional[str] = None
     error: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

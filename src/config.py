@@ -94,6 +94,17 @@ BACKOFF_BASE_SECONDS: float = float(os.getenv("BACKOFF_BASE_SECONDS", "1.0"))
 BACKOFF_MAX_SECONDS: float = float(os.getenv("BACKOFF_MAX_SECONDS", "60.0"))
 BACKOFF_MULTIPLIER: float = float(os.getenv("BACKOFF_MULTIPLIER", "2.0"))
 
+# ── Chat preferences ──────────────────────────────────────────────────────────
+MONGO_COLLECTION_PREFERENCES: str = os.getenv("MONGO_COLLECTION_PREFERENCES", "chat_preferences")
+AVAILABLE_MODELS: list[str] = [
+    m.strip()
+    for m in os.getenv(
+        "AVAILABLE_MODELS",
+        f"{LITELLM_WORKER_MODEL},{LITELLM_ORCHESTRATOR_MODEL},gpt-4o-mini",
+    ).split(",")
+    if m.strip()
+]
+
 # ── LangGraph / Deep Agents / LangMem ────────────────────────────────────────
 DEEP_AGENT_WORKSPACE: str = os.getenv("DEEP_AGENT_WORKSPACE", "/workspace/agent_files")
 LANGMEM_NAMESPACE: str = os.getenv("LANGMEM_NAMESPACE", f"{APP_NAME},memories")
@@ -106,6 +117,10 @@ LANGMEM_NAMESPACE: str = os.getenv("LANGMEM_NAMESPACE", f"{APP_NAME},memories")
 SUMMARIZATION_TRIGGER_TOKENS: int = int(
     os.getenv("SUMMARIZATION_TRIGGER_TOKENS", "100000")
 )
+
+# ── Dashboard ─────────────────────────────────────────────────────────────────
+DASHBOARD_PORT: int = int(os.getenv("DASHBOARD_PORT", "8080"))
+DASHBOARD_ENABLED: bool = os.getenv("DASHBOARD_ENABLED", "true").lower() == "true"
 
 # ── LangSmith (optional observability) ───────────────────────────────────────
 LANGSMITH_TRACING: str = os.getenv("LANGSMITH_TRACING", "false")

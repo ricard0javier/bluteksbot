@@ -5,7 +5,7 @@ from typing import Optional
 
 from src import config
 from src.persistence.client import get_db
-from src.persistence.models import BotTask, TaskStatus
+from src.persistence.models import BotTask, TaskStatus, TaskStep
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +36,28 @@ def update_status(
     logger.debug("Task %s → %s.", task_id, status.value)
 
 
+def get_status(task_id: str) -> Optional[TaskStatus]:
+    doc = _col().find_one({"_id": task_id}, {"status": 1})
+    if not doc:
+        return None
+    return TaskStatus(doc["status"])
+
+
 def append_progress(task_id: str, step: str) -> None:
     _col().update_one(
         {"_id": task_id},
         {
             "$push": {"progress": step},
+            "$set": {"updated_at": datetime.now(timezone.utc)},
+        },
+    )
+
+
+def append_step(task_id: str, step: TaskStep) -> None:
+    _col().update_one(
+        {"_id": task_id},
+        {
+            "$push": {"steps": step.model_dump()},
             "$set": {"updated_at": datetime.now(timezone.utc)},
         },
     )

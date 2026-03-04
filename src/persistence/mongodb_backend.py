@@ -1,13 +1,14 @@
 """MongoDB-backed BackendProtocol for conversation history offloading.
 
 Implements the subset of BackendProtocol used by SummarizationMiddleware
-(download_files, write, edit) plus glob_info/ls_info so CompositeBackend
-can enumerate virtual files without raising NotImplementedError.
+(download_files, write, edit) plus glob_info/ls_info/grep_raw so CompositeBackend
+can enumerate and search virtual files without raising NotImplementedError.
 """
 
 import asyncio
 import fnmatch
 import logging
+import re
 from datetime import UTC, datetime
 
 from deepagents.backends.protocol import (
@@ -124,3 +125,31 @@ class MongoDBBackend(BackendProtocol):
 
     async def aglob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:
         return await asyncio.to_thread(self.glob_info, pattern, path)
+
+    # ── grep ──────────────────────────────────────────────────────────────────
+
+    def grep_raw(self, pattern: str, path: str = "/", glob: str = "*") -> str:
+        """Search stored documents for lines matching *pattern* (regex).
+
+        Returns grep-style output: ``path:line_number:matching_line`` per match.
+        An empty string means no matches — never raises.
+        """
+        try:
+            rx = re.compile(pattern, re.IGNORECASE)
+        except re.error:
+            rx = re.compile(re.escape(pattern), re.IGNORECASE)
+
+        docs = self._col.find({}, {"content": 1})
+        lines_out: list[str] = []
+        for doc in docs:
+            doc_path: str = doc["_id"]
+            if not fnmatch.fnmatch(doc_path, glob):
+                continue
+            content: str = doc.get("content") or ""
+            for lineno, line in enumerate(content.splitlines(), start=1):
+                if rx.search(line):
+                    lines_out.append(f"{doc_path}:{lineno}:{line}")
+        return "\n".join(lines_out)
+
+    async def agrep_raw(self, pattern: str, path: str = "/", glob: str = "*") -> str:
+        return await asyncio.to_thread(self.grep_raw, pattern, path, glob)

@@ -18,9 +18,12 @@ def _configure_langsmith() -> None:
         logger.info("LangSmith tracing enabled (project=%s).", config.LANGSMITH_PROJECT)
 
 
-@lru_cache(maxsize=1)
-def build_agent():
-    """Build and cache the compiled Deep Agent graph.
+@lru_cache(maxsize=None)
+def build_agent(model_name: str = ""):
+    """Build and cache a compiled Deep Agent graph per model.
+
+    Args:
+        model_name: LiteLLM model identifier. Defaults to ``config.LITELLM_WORKER_MODEL``.
 
     Returns a CompiledStateGraph that accepts:
         agent.invoke(
@@ -28,6 +31,7 @@ def build_agent():
             config={"configurable": {"thread_id": "<chat_id>"}},
         )
     """
+    model_name = model_name or config.LITELLM_WORKER_MODEL
     _configure_langsmith()
 
     from deepagents import create_deep_agent
@@ -76,7 +80,7 @@ def build_agent():
         else None
     )
     model = init_chat_model(
-        model=config.LITELLM_WORKER_MODEL,
+        model=model_name,
         model_provider="openai",
         base_url=f"{config.LITELLM_BASE_URL}/v1",
         api_key=config.LITELLM_API_KEY,
@@ -121,5 +125,5 @@ def build_agent():
         backend=backend,
     )
 
-    logger.info("Deep Agent built (model=%s).", config.LITELLM_WORKER_MODEL)
+    logger.info("Deep Agent built (model=%s).", model_name)
     return agent

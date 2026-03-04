@@ -76,6 +76,14 @@ def disable_job(job_id: str) -> bool:
     return result.modified_count > 0
 
 
+def enable_job(job_id: str) -> bool:
+    result = _jobs_col().update_one(
+        {"_id": job_id},
+        {"$set": {"enabled": True, "updated_at": datetime.now(timezone.utc)}},
+    )
+    return result.modified_count > 0
+
+
 def update_last_run(
     job_id: str, run_at: datetime, next_run_at: Optional[datetime] = None
 ) -> None:
