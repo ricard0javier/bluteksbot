@@ -35,6 +35,7 @@ class Orchestrator:
         """Execute in a background thread: streams agent output, sends progress updates."""
         chat_id = raw["chat_id"]
         user_text = raw.get("text", "") or "[non-text message]"
+        user_content = _build_message_content(raw)
 
         task_store.update_status(task_id, TaskStatus.RUNNING)
 
@@ -44,6 +45,7 @@ class Orchestrator:
                 status_msg_id=status_msg_id,
                 chat_id=chat_id,
                 user_text=user_text,
+                user_content=user_content,
             )
             _send_safe(self._bot, chat_id, reply)
             task_store.update_status(task_id, TaskStatus.DONE, result=reply[:500])
@@ -176,6 +178,7 @@ class Orchestrator:
         status_msg_id: int,
         chat_id: int,
         user_text: str,
+        user_content: str | list | None = None,
     ) -> str:
         """Stream agent execution, edit status message on each step, return final reply."""
         tg_steps: list[str] = []
@@ -191,8 +194,9 @@ class Orchestrator:
             except Exception:
                 pass  # ignore "message not modified" races
 
+        content = user_content if user_content is not None else user_text
         for chunk in self._agent.stream(
-            {"messages": [{"role": "user", "content": user_text}]},
+            {"messages": [{"role": "user", "content": content}]},
             config={"configurable": {"thread_id": str(chat_id)}},
             stream_mode="updates",
         ):
@@ -302,6 +306,27 @@ def _telegram_label(tool_calls: list[dict], tool_results: list[dict]) -> str | N
 def _format_progress(steps: list[str]) -> str:
     recent = steps[-5:]  # show last 5 steps to stay within Telegram's message length
     return "\n".join(recent)
+
+
+def _build_message_content(raw: dict) -> str | list:
+    """Build LangChain message content from raw input.
+
+    Returns a multimodal list when images are present, plain string otherwise.
+    Documents are saved to the workspace by the consumer; text already contains
+    the workspace path note.
+    """
+    text = raw.get("text", "") or "[non-text message]"
+    media_content: list[dict] = raw.get("media_content", [])
+
+    images = [m for m in media_content if m.get("type") == "image"]
+    if not images:
+        return text
+
+    blocks: list[dict] = [{"type": "text", "text": text}]
+    for img in images:
+        data_url = f"data:{img['mime_type']};base64,{img['bytes_b64']}"
+        blocks.append({"type": "image_url", "image_url": {"url": data_url}})
+    return blocks
 
 
 def _snapshot_tool_call_ids(agent, thread_id: str) -> set[str]:

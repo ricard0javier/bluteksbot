@@ -47,6 +47,7 @@ def build_agent(model_name: str = ""):
     from src.persistence.mongodb_backend import MongoDBBackend
     from src.tools.agent_tools import ALL_TOOLS
     from src.tools.schedule_tool import SCHEDULE_TOOLS
+    from src.tools.telegram_tools import TELEGRAM_TOOLS
 
     checkpointer = MongoDBSaver(
         client=get_client(),
@@ -118,7 +119,7 @@ def build_agent(model_name: str = ""):
 
     agent = create_deep_agent(
         model=model,
-        tools=[*ALL_TOOLS, *SCHEDULE_TOOLS, manage_memory, search_memory],
+        tools=[*ALL_TOOLS, *SCHEDULE_TOOLS, *TELEGRAM_TOOLS, manage_memory, search_memory],
         system_prompt=ORCHESTRATOR_SYSTEM,
         checkpointer=checkpointer,
         store=store,

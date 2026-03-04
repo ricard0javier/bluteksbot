@@ -2,6 +2,8 @@ services:
   bot:
     build: .
     env_file: .env
+    ports:
+      - "8080:8080"
     depends_on:
       mongo:
         condition: service_healthy
@@ -13,6 +15,12 @@ services:
     volumes:
       - ./logs:/app/logs
       - agent_files:/workspace/agent_files
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   mongo:
     image: mongodb/mongodb-atlas-local
@@ -24,11 +32,11 @@ services:
     networks:
       - backend
     healthcheck:
-      test: mongosh --quiet --eval "db.adminCommand('ping').ok" --exit
+      test: mongosh --quiet --eval "db.adminCommand('ping').ok"
       interval: 5s
       timeout: 10s
       retries: 30
-      start_period: 15s
+      start_period: 30s
 
   litellm-db:
     image: postgres:16-alpine

@@ -118,6 +118,10 @@ SUMMARIZATION_TRIGGER_TOKENS: int = int(
     os.getenv("SUMMARIZATION_TRIGGER_TOKENS", "100000")
 )
 
+# ── Telegram Media ────────────────────────────────────────────────────────────
+WHISPER_MODEL: str = os.getenv("WHISPER_MODEL", "whisper-1")
+TELEGRAM_MAX_FILE_SIZE_MB: int = int(os.getenv("TELEGRAM_MAX_FILE_SIZE_MB", "20"))
+
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 DASHBOARD_PORT: int = int(os.getenv("DASHBOARD_PORT", "8080"))
 DASHBOARD_ENABLED: bool = os.getenv("DASHBOARD_ENABLED", "true").lower() == "true"

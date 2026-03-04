@@ -61,3 +61,15 @@ def append_step(task_id: str, step: TaskStep) -> None:
             "$set": {"updated_at": datetime.now(timezone.utc)},
         },
     )
+
+
+def list_running(chat_id: int) -> list[dict]:
+    """Return running/pending tasks for a chat as lightweight dicts: {id, input, status}."""
+    docs = _col().find(
+        {"chat_id": chat_id, "status": {"$in": [TaskStatus.RUNNING.value, TaskStatus.PENDING.value]}},
+        {"_id": 1, "input": 1, "status": 1, "created_at": 1},
+    ).sort("created_at", -1).limit(10)
+    return [
+        {"id": doc["_id"], "input": doc.get("input", ""), "status": doc.get("status", "")}
+        for doc in docs
+    ]

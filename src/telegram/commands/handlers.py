@@ -9,6 +9,8 @@ import telebot
 from src import config
 from src.persistence.client import get_db
 from src.persistence.preferences_store import get_model, set_model
+from src.persistence.task_store import list_running, update_status
+from src.persistence.models import TaskStatus
 
 from .registry import CommandRegistry
 
@@ -82,6 +84,30 @@ def register_all(registry: CommandRegistry) -> None:
         set_model(chat_id, chosen)
         logger.info("Model switched (chat=%s): %s → %s.", chat_id, current, chosen)
         bot.send_message(chat_id, f"Model switched to `{chosen}`. ✓", parse_mode="Markdown")
+
+    @registry.register("/cancel", "Cancel a running task")
+    def cancel_task(message: telebot.types.Message, bot: telebot.TeleBot) -> None:
+        chat_id = message.chat.id
+        tasks = list_running(chat_id)
+
+        if not tasks:
+            bot.send_message(chat_id, "No running tasks to cancel.")
+            return
+
+        keyboard = telebot.types.InlineKeyboardMarkup()
+        for t in tasks:
+            label = (t["input"][:40] + "…") if len(t["input"]) > 40 else t["input"]
+            keyboard.add(
+                telebot.types.InlineKeyboardButton(
+                    f"❌ {label}", callback_data=f"cancel:{t['id']}"
+                )
+            )
+        bot.send_message(
+            chat_id,
+            "*Select a task to cancel:*",
+            reply_markup=keyboard,
+            parse_mode="Markdown",
+        )
 
     @registry.register("/commands", "List all available commands")
     def list_commands(message: telebot.types.Message, bot: telebot.TeleBot) -> None:
