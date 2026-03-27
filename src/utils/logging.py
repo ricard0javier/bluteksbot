@@ -46,6 +46,7 @@ def setup_logging() -> None:
     root_level = logging.INFO if is_debug else getattr(logging, config.LOG_LEVEL.upper(), logging.INFO)
     logging.basicConfig(level=root_level, handlers=[console, file_handler])
     # your app namespace
+    logging.getLogger("httpx").setLevel(logging.DEBUG if is_debug else logging.WARNING)
     logging.getLogger("src").setLevel(logging.DEBUG if is_debug else root_level)
     # dependency allowlist (from env/config)
     for name in config.LOG_DEBUG_DEPENDENCIES:   # e.g. ["httpx", "telegram"]
