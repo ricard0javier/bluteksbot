@@ -60,10 +60,13 @@ cp .env.example .env
 # 2. Create conda environment
 make install
 
-# 3. Start infrastructure
+# 3. Build the project
+make build
+
+# 4.1. Start infrastructure
 make up
 
-# 4. Run bot locally (hot-reload friendly)
+# 4.2. Run bot locally (hot-reload friendly)
 make dev
 ```
 
@@ -85,31 +88,31 @@ make dev
 ## Optional config (`.env`)
 
 
-| Variable                         | Default                  | Description                                           |
-| -------------------------------- | ------------------------ | ----------------------------------------------------- |
-| `TELEGRAM_ALLOWED_USER_IDS`      | *(empty = allow all)*    | Comma-separated Telegram user IDs to whitelist        |
-| `LITELLM_ORCHESTRATOR_MODEL`     | `claude-sonnet-4-5`      | Model for the orchestrator layer (routing/planning)   |
-| `LITELLM_WORKER_MODEL`           | `minimax/minimax-m2`     | Model used by the Deep Agent for all tasks            |
-| `LITELLM_MAX_TOKENS`             | `4096`                   | Max tokens per LLM call                               |
-| `LITELLM_TEMPERATURE`            | `0.2`                    | Sampling temperature                                  |
-| `LITELLM_EMBEDDING_MODEL`        | `text-embedding-3-small` | Embedding model for long-term memory search           |
-| `EMBEDDING_DIMENSION`            | `1536`                   | Vector dimensions (must match model)                  |
-| `MEMORY_TOP_K`                   | `5`                      | Top-k results for semantic memory recall              |
-| `LANGMEM_NAMESPACE`              | `bluteksbot,memories`    | Comma-separated namespace for LangMem long-term store |
-| `SMTP_HOST`                      | `smtp.gmail.com`         | SMTP server for `send_email_tool`                     |
-| `SMTP_PORT`                      | `587`                    | SMTP port                                             |
-| `SMTP_USER`                      | *(empty)*                | SMTP username                                         |
-| `SMTP_PASSWORD`                  | *(empty)*                | SMTP password                                         |
-| `EMAIL_FROM`                     | *(empty)*                | Sender address for outgoing emails                    |
-| `CALENDAR_TIMEZONE`              | `UTC`                    | Timezone for calendar-related operations              |
-| `CODE_EXECUTOR_TIMEOUT`          | `60`                     | Hard kill timeout (seconds) for code execution        |
-| `CODE_EXECUTOR_MAX_OUTPUT_CHARS` | `5000`                   | Truncate stdout/stderr beyond this length             |
-| `LOG_LEVEL`                      | `INFO`                   | `DEBUG | INFO | WARNING | ERROR`                      |
+| Variable                         | Default                  | Description                                                                     |
+| -------------------------------- | ------------------------ | ------------------------------------------------------------------------------- |
+| `TELEGRAM_ALLOWED_USER_IDS`      | *(empty = allow all)*    | Comma-separated Telegram user IDs to whitelist                                  |
+| `LITELLM_ORCHESTRATOR_MODEL`     | `claude-sonnet-4-5`      | Model for the orchestrator layer (routing/planning)                             |
+| `LITELLM_WORKER_MODEL`           | `minimax/minimax-m2`     | Model used by the Deep Agent for all tasks                                      |
+| `LITELLM_MAX_TOKENS`             | `4096`                   | Max tokens per LLM call                                                         |
+| `LITELLM_TEMPERATURE`            | `0.2`                    | Sampling temperature                                                            |
+| `LITELLM_EMBEDDING_MODEL`        | `text-embedding-3-small` | Embedding model for long-term memory search                                     |
+| `EMBEDDING_DIMENSION`            | `1536`                   | Vector dimensions (must match model)                                            |
+| `MEMORY_TOP_K`                   | `5`                      | Top-k results for semantic memory recall                                        |
+| `LANGMEM_NAMESPACE`              | `bluteksbot,memories`    | Comma-separated namespace for LangMem long-term store                           |
+| `SMTP_HOST`                      | `smtp.gmail.com`         | SMTP server for `send_email_tool`                                               |
+| `SMTP_PORT`                      | `587`                    | SMTP port                                                                       |
+| `SMTP_USER`                      | *(empty)*                | SMTP username                                                                   |
+| `SMTP_PASSWORD`                  | *(empty)*                | SMTP password                                                                   |
+| `EMAIL_FROM`                     | *(empty)*                | Sender address for outgoing emails                                              |
+| `CALENDAR_TIMEZONE`              | `UTC`                    | Timezone for calendar-related operations                                        |
+| `CODE_EXECUTOR_TIMEOUT`          | `60`                     | Hard kill timeout (seconds) for code execution                                  |
+| `CODE_EXECUTOR_MAX_OUTPUT_CHARS` | `5000`                   | Truncate stdout/stderr beyond this length                                       |
+| `LOG_LEVEL`                      | `INFO`                   | `DEBUG                                                                          |
 | `LOG_DEBUG_DEPENDENCIES`         | *(empty)*                | Comma-separated dependency logger names to set to DEBUG (e.g. `httpx,telegram`) |
-| `ENVIRONMENT`                    | `development`            | `development | production`                            |
-| `LANGSMITH_TRACING`              | `false`                  | Set to `true` to enable LangSmith tracing             |
-| `LANGSMITH_API_KEY`              | *(empty)*                | Required when `LANGSMITH_TRACING=true`                |
-| `LANGSMITH_PROJECT`              | `bluteksbot`             | LangSmith project name                                |
+| `ENVIRONMENT`                    | `development`            | `development                                                                    |
+| `LANGSMITH_TRACING`              | `false`                  | Set to `true` to enable LangSmith tracing                                       |
+| `LANGSMITH_API_KEY`              | *(empty)*                | Required when `LANGSMITH_TRACING=true`                                          |
+| `LANGSMITH_PROJECT`              | `bluteksbot`             | LangSmith project name                                                          |
 
 
 ---
