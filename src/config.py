@@ -10,6 +10,7 @@ load_dotenv()
 # ── Application ───────────────────────────────────────────────────────────────
 APP_NAME: str = os.getenv("APP_NAME", "bluteksbot")
 LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+LOG_DEBUG_DEPENDENCIES: list[str] = os.getenv("LOG_DEBUG_DEPENDENCIES", "").split(",")
 LOG_FILE: str = os.getenv("LOG_FILE", "logs/bluteksbot.log")
 ENVIRONMENT: str = os.getenv("ENVIRONMENT", "production")
 

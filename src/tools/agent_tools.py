@@ -17,6 +17,7 @@ def web_search_tool(query: str) -> str:
     """Search the web for real-time information. Use for current events, facts, or any topic needing up-to-date data."""
     from src.tools.web_search import web_search
 
+    logger.debug(f'Executing web search "${query}"')
     results = web_search(query=query, max_results=config.WEB_SEARCH_MAX_RESULTS)
     if not results:
         return "No results found."
@@ -28,6 +29,7 @@ def execute_python_tool(code: str) -> str:
     """Execute Python code and return stdout/stderr output. Use for calculations, data processing, or scripting tasks."""
     from src.tools.code_executor import execute_python
 
+    logger.debug(f'executing pyhton code: ${code}')
     return execute_python(code)
 
 
@@ -36,6 +38,7 @@ def execute_shell_tool(command: str) -> str:
     """Run a bash shell command and return its output. Use for system tasks or CLI tools."""
     from src.tools.code_executor import execute_shell
 
+    logger.debug(f'executing shell tool: ${command}')
     return execute_shell(command)
 
 
@@ -50,6 +53,7 @@ def send_email_tool(to: str, subject: str, body: str) -> str:
     """
     from src.tools.email_sender import send_email
 
+    logger.debug(f'Sending email to ${to}, with subject "${subject}"')
     success = send_email(to=to, subject=subject, body=body)
     return f"Email sent to {to}." if success else "Failed to send email."
 

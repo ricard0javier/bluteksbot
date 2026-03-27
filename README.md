@@ -19,27 +19,31 @@ BluteksBot is built on one principle: **deliver real value at minimum cost, with
 
 ## Stack
 
-| Layer | Tech |
-|---|---|
-| Transport | Telegram Bot API (`pyTelegramBotAPI`) |
-| Agent | LangGraph Deep Agents (`deepagents`) — planning, tool calling, subagents |
-| LLM | LiteLLM proxy → OpenAI-compatible (self-hosted; default model: **MiniMax M2.5**) |
-| Persistence | MongoDB Atlas Local (replica set — checkpoints + long-term memory + events) |
-| LiteLLM state | Postgres 16 (LiteLLM internal DB) |
-| Conversation state | `MongoDBSaver` (LangGraph checkpointer) — per-chat message history |
-| Agent filesystem | `FilesystemBackend` — all paths written to `DEEP_AGENT_WORKSPACE` (Docker volume, mountable to S3/NFS) |
-| Semantic memory | `MongoDBStore` + LangMem — cross-session vector-searchable user facts |
-| Scheduling | APScheduler + MongoDB job store — declarative cron jobs via YAML |
+
+| Layer              | Tech                                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------ |
+| Transport          | Telegram Bot API (`pyTelegramBotAPI`)                                                                  |
+| Agent              | LangGraph Deep Agents (`deepagents`) — planning, tool calling, subagents                               |
+| LLM                | LiteLLM proxy → OpenAI-compatible (self-hosted; default model: **MiniMax M2.5**)                       |
+| Persistence        | MongoDB Atlas Local (replica set — checkpoints + long-term memory + events)                            |
+| LiteLLM state      | Postgres 16 (LiteLLM internal DB)                                                                      |
+| Conversation state | `MongoDBSaver` (LangGraph checkpointer) — per-chat message history                                     |
+| Agent filesystem   | `FilesystemBackend` — all paths written to `DEEP_AGENT_WORKSPACE` (Docker volume, mountable to S3/NFS) |
+| Semantic memory    | `MongoDBStore` + LangMem — cross-session vector-searchable user facts                                  |
+| Scheduling         | APScheduler + MongoDB job store — declarative cron jobs via YAML                                       |
+
 
 ---
 
 ## Cost & Resources
 
-| Scenario | Approximate daily cost |
-|---|---|
-| MiniMax M2.5 (default) | **< $0.20 / day** |
-| GPT-4o-mini | ~$0.50–1.00 / day (typical personal use) |
-| Claude Sonnet | ~$1–3 / day (higher quality tasks) |
+
+| Scenario               | Approximate daily cost                   |
+| ---------------------- | ---------------------------------------- |
+| MiniMax M2.5 (default) | **< $0.20 / day**                        |
+| GPT-4o-mini            | ~$0.50–1.00 / day (typical personal use) |
+| Claude Sonnet          | ~$1–3 / day (higher quality tasks)       |
+
 
 All models are configured in `litellm_config.yaml` and selected via `.env` — no code changes required to switch.
 
@@ -67,41 +71,46 @@ make dev
 
 ## Required secrets (`.env`)
 
-| Variable | Description |
-|---|---|
-| `TELEGRAM_BOT_TOKEN` | From [@BotFather](https://t.me/botfather) |
-| `OPENAI_API_KEY` | Forwarded to LiteLLM proxy (GPT models) |
-| `ANTHROPIC_API_KEY` | Forwarded to LiteLLM proxy (Claude models) |
-| `MINIMAX_API_KEY` | Forwarded to LiteLLM proxy (MiniMax M2 models) — **default model** |
-| `TAVILY_API_KEY` | For web search ([tavily.com](https://tavily.com)) |
-| `LITELLM_API_KEY` | Master key for the self-hosted LiteLLM gateway |
+
+| Variable             | Description                                                        |
+| -------------------- | ------------------------------------------------------------------ |
+| `TELEGRAM_BOT_TOKEN` | From [@BotFather](https://t.me/botfather)                          |
+| `OPENAI_API_KEY`     | Forwarded to LiteLLM proxy (GPT models)                            |
+| `ANTHROPIC_API_KEY`  | Forwarded to LiteLLM proxy (Claude models)                         |
+| `MINIMAX_API_KEY`    | Forwarded to LiteLLM proxy (MiniMax M2 models) — **default model** |
+| `TAVILY_API_KEY`     | For web search ([tavily.com](https://tavily.com))                  |
+| `LITELLM_API_KEY`    | Master key for the self-hosted LiteLLM gateway                     |
+
 
 ## Optional config (`.env`)
 
-| Variable | Default | Description |
-|---|---|---|
-| `TELEGRAM_ALLOWED_USER_IDS` | _(empty = allow all)_ | Comma-separated Telegram user IDs to whitelist |
-| `LITELLM_ORCHESTRATOR_MODEL` | `claude-sonnet-4-5` | Model for the orchestrator layer (routing/planning) |
-| `LITELLM_WORKER_MODEL` | `minimax/minimax-m2` | Model used by the Deep Agent for all tasks |
-| `LITELLM_MAX_TOKENS` | `4096` | Max tokens per LLM call |
-| `LITELLM_TEMPERATURE` | `0.2` | Sampling temperature |
-| `LITELLM_EMBEDDING_MODEL` | `text-embedding-3-small` | Embedding model for long-term memory search |
-| `EMBEDDING_DIMENSION` | `1536` | Vector dimensions (must match model) |
-| `MEMORY_TOP_K` | `5` | Top-k results for semantic memory recall |
-| `LANGMEM_NAMESPACE` | `bluteksbot,memories` | Comma-separated namespace for LangMem long-term store |
-| `SMTP_HOST` | `smtp.gmail.com` | SMTP server for `send_email_tool` |
-| `SMTP_PORT` | `587` | SMTP port |
-| `SMTP_USER` | _(empty)_ | SMTP username |
-| `SMTP_PASSWORD` | _(empty)_ | SMTP password |
-| `EMAIL_FROM` | _(empty)_ | Sender address for outgoing emails |
-| `CALENDAR_TIMEZONE` | `UTC` | Timezone for calendar-related operations |
-| `CODE_EXECUTOR_TIMEOUT` | `60` | Hard kill timeout (seconds) for code execution |
-| `CODE_EXECUTOR_MAX_OUTPUT_CHARS` | `5000` | Truncate stdout/stderr beyond this length |
-| `LOG_LEVEL` | `INFO` | `DEBUG \| INFO \| WARNING \| ERROR` |
-| `ENVIRONMENT` | `development` | `development \| production` |
-| `LANGSMITH_TRACING` | `false` | Set to `true` to enable LangSmith tracing |
-| `LANGSMITH_API_KEY` | _(empty)_ | Required when `LANGSMITH_TRACING=true` |
-| `LANGSMITH_PROJECT` | `bluteksbot` | LangSmith project name |
+
+| Variable                         | Default                  | Description                                           |
+| -------------------------------- | ------------------------ | ----------------------------------------------------- |
+| `TELEGRAM_ALLOWED_USER_IDS`      | *(empty = allow all)*    | Comma-separated Telegram user IDs to whitelist        |
+| `LITELLM_ORCHESTRATOR_MODEL`     | `claude-sonnet-4-5`      | Model for the orchestrator layer (routing/planning)   |
+| `LITELLM_WORKER_MODEL`           | `minimax/minimax-m2`     | Model used by the Deep Agent for all tasks            |
+| `LITELLM_MAX_TOKENS`             | `4096`                   | Max tokens per LLM call                               |
+| `LITELLM_TEMPERATURE`            | `0.2`                    | Sampling temperature                                  |
+| `LITELLM_EMBEDDING_MODEL`        | `text-embedding-3-small` | Embedding model for long-term memory search           |
+| `EMBEDDING_DIMENSION`            | `1536`                   | Vector dimensions (must match model)                  |
+| `MEMORY_TOP_K`                   | `5`                      | Top-k results for semantic memory recall              |
+| `LANGMEM_NAMESPACE`              | `bluteksbot,memories`    | Comma-separated namespace for LangMem long-term store |
+| `SMTP_HOST`                      | `smtp.gmail.com`         | SMTP server for `send_email_tool`                     |
+| `SMTP_PORT`                      | `587`                    | SMTP port                                             |
+| `SMTP_USER`                      | *(empty)*                | SMTP username                                         |
+| `SMTP_PASSWORD`                  | *(empty)*                | SMTP password                                         |
+| `EMAIL_FROM`                     | *(empty)*                | Sender address for outgoing emails                    |
+| `CALENDAR_TIMEZONE`              | `UTC`                    | Timezone for calendar-related operations              |
+| `CODE_EXECUTOR_TIMEOUT`          | `60`                     | Hard kill timeout (seconds) for code execution        |
+| `CODE_EXECUTOR_MAX_OUTPUT_CHARS` | `5000`                   | Truncate stdout/stderr beyond this length             |
+| `LOG_LEVEL`                      | `INFO`                   | `DEBUG | INFO | WARNING | ERROR`                      |
+| `LOG_DEBUG_DEPENDENCIES`         | *(empty)*                | Comma-separated dependency logger names to set to DEBUG (e.g. `httpx,telegram`) |
+| `ENVIRONMENT`                    | `development`            | `development | production`                            |
+| `LANGSMITH_TRACING`              | `false`                  | Set to `true` to enable LangSmith tracing             |
+| `LANGSMITH_API_KEY`              | *(empty)*                | Required when `LANGSMITH_TRACING=true`                |
+| `LANGSMITH_PROJECT`              | `bluteksbot`             | LangSmith project name                                |
+
 
 ---
 
@@ -109,12 +118,14 @@ make dev
 
 Slash commands are intercepted **before** the LLM — instant, no token cost.
 
-| Command | Description |
-|---|---|
-| `/clean` | Clear conversation thread, checkpoints, and summarization history |
-| `/model` | Show active model and available options |
-| `/model <n or name>` | Switch to a different LLM model (persisted per chat) |
-| `/commands` | List all available commands |
+
+| Command              | Description                                                       |
+| -------------------- | ----------------------------------------------------------------- |
+| `/clean`             | Clear conversation thread, checkpoints, and summarization history |
+| `/model`             | Show active model and available options                           |
+| `/model <n or name>` | Switch to a different LLM model (persisted per chat)              |
+| `/commands`          | List all available commands                                       |
+
 
 Available models are controlled by `AVAILABLE_MODELS` in `.env` (comma-separated). The selection is persisted per chat in MongoDB and survives restarts.
 
@@ -157,12 +168,14 @@ Deep Agent (LangGraph)  ←── MongoDBSaver        conversation state, per ch
 
 LiteLLM uses its own Postgres instance (managed by Docker Compose).
 
-| Layer | Scope | Backend |
-|---|---|---|
-| Conversation state | Per thread (chat) | `MongoDBSaver` checkpointer |
-| Agent filesystem | All paths (`/memories/`, `/workspace/`, etc.) | `FilesystemBackend` → `DEEP_AGENT_WORKSPACE` Docker volume |
-| Semantic memory | All threads + restarts | `MongoDBStore` + vector index (LangMem) |
-| Scheduled jobs | Persistent cron definitions | MongoDB job store (APScheduler) |
+
+| Layer              | Scope                                         | Backend                                                    |
+| ------------------ | --------------------------------------------- | ---------------------------------------------------------- |
+| Conversation state | Per thread (chat)                             | `MongoDBSaver` checkpointer                                |
+| Agent filesystem   | All paths (`/memories/`, `/workspace/`, etc.) | `FilesystemBackend` → `DEEP_AGENT_WORKSPACE` Docker volume |
+| Semantic memory    | All threads + restarts                        | `MongoDBStore` + vector index (LangMem)                    |
+| Scheduled jobs     | Persistent cron definitions                   | MongoDB job store (APScheduler)                            |
+
 
 The agent is instructed to save anything that should survive across conversations under `/memories/` (e.g. `/memories/preferences.txt`, `/memories/context/`). Temporary work goes to `/workspace/`.
 
@@ -197,3 +210,4 @@ make clean   # remove caches + volumes
 1. Create (or add to) `src/tools/agent_tools.py` with a `@tool` decorated function
 2. Add it to the `ALL_TOOLS` list at the bottom of that file
 3. Update `ORCHESTRATOR_SYSTEM` in `src/llms/prompts.py` to describe the new tool
+

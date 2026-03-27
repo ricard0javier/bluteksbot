@@ -39,6 +39,14 @@ def setup_logging() -> None:
     file_handler = logging.FileHandler(config.LOG_FILE)
     file_handler.setFormatter(plain_fmt)
 
-    logging.basicConfig(level=level, handlers=[console, file_handler])
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("telegram").setLevel(logging.WARNING)
+    # Suppress unnecessary logs
+    # inside setup_logging()
+    is_debug = config.LOG_LEVEL.upper() == "DEBUG"
+    # keep root conservative to avoid global dependency noise
+    root_level = logging.INFO if is_debug else getattr(logging, config.LOG_LEVEL.upper(), logging.INFO)
+    logging.basicConfig(level=root_level, handlers=[console, file_handler])
+    # your app namespace
+    logging.getLogger("src").setLevel(logging.DEBUG if is_debug else root_level)
+    # dependency allowlist (from env/config)
+    for name in config.LOG_DEBUG_DEPENDENCIES:   # e.g. ["httpx", "telegram"]
+        logging.getLogger(name).setLevel(logging.DEBUG if is_debug else logging.WARNING)
