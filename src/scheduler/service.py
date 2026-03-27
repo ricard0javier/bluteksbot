@@ -55,7 +55,6 @@ class SchedulerService:
     def start(self) -> None:
         global _instance
         _instance = self
-        job_store.ensure_indexes()
         config_jobs = load_from_file()
         self._scheduler.start()
         self._load_all_jobs(extra_jobs=config_jobs)

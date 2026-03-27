@@ -12,6 +12,7 @@ from src.api.server import app as dashboard_app
 from src.scheduler.service import SchedulerService
 from src.telegram.consumer import TelegramConsumer
 from src.utils.logging import setup_logging
+from src.persistence.client import setup_indexes
 
 
 class Application:
@@ -85,6 +86,7 @@ class Application:
 
 def main() -> None:
     setup_logging()
+    setup_indexes()
     app = Application()
     app.start()
 

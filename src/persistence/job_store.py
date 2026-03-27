@@ -3,7 +3,6 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from pymongo import ASCENDING
 from pymongo.errors import DuplicateKeyError
 
 from src import config
@@ -19,19 +18,6 @@ def _jobs_col():
 
 def _exec_col():
     return get_db()[config.MONGO_COLLECTION_JOB_EXECUTIONS]
-
-
-def ensure_indexes() -> None:
-    """Create required indexes — idempotent, safe to call on every startup."""
-    _exec_col().create_index(
-        [("job_id", ASCENDING), ("scheduled_fire_time", ASCENDING)],
-        unique=True,
-        name="job_fire_time_unique",
-    )
-    _jobs_col().create_index([("enabled", ASCENDING)], name="enabled_idx")
-    _jobs_col().create_index([("chat_id", ASCENDING)], name="chat_id_idx")
-    logger.debug("Job store indexes ensured.")
-
 
 # ── Scheduled Jobs ────────────────────────────────────────────────────────────
 

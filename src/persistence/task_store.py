@@ -9,10 +9,8 @@ from src.persistence.models import BotTask, TaskStatus, TaskStep
 
 logger = logging.getLogger(__name__)
 
-
 def _col():
     return get_db()[config.MONGO_COLLECTION_TASKS]
-
 
 def create(task: BotTask) -> str:
     doc = task.model_dump(by_alias=True)
