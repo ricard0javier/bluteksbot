@@ -1,4 +1,5 @@
 """Observability dashboard — FastAPI server exposing live agent state with job controls."""
+
 from datetime import datetime, timezone
 from typing import Any
 
@@ -15,6 +16,7 @@ app = FastAPI(title="Bluteksbot Dashboard", docs_url=None, redoc_url=None)
 
 # ── Data helpers ──────────────────────────────────────────────────────────────
 
+
 def _serialize(doc: dict) -> dict:
     """Convert MongoDB doc to JSON-safe dict (ObjectId → str, datetime → ISO)."""
     out: dict[str, Any] = {}
@@ -25,7 +27,9 @@ def _serialize(doc: dict) -> dict:
         elif isinstance(v, list):
             out[key] = [_serialize(i) if isinstance(i, dict) else i for i in v]
         else:
-            out[key] = str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v
+            out[key] = (
+                str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v
+            )
     return out
 
 
@@ -33,11 +37,19 @@ def _duration_s(start: datetime | None, end: datetime | None) -> float | None:
     if start and end:
         return round((end - start).total_seconds(), 1)
     if start:
-        return round((datetime.now(timezone.utc) - start.replace(tzinfo=timezone.utc) if start.tzinfo is None else datetime.now(timezone.utc) - start).total_seconds(), 1)
+        return round(
+            (
+                datetime.now(timezone.utc) - start.replace(tzinfo=timezone.utc)
+                if start.tzinfo is None
+                else datetime.now(timezone.utc) - start
+            ).total_seconds(),
+            1,
+        )
     return None
 
 
 # ── API endpoints ─────────────────────────────────────────────────────────────
+
 
 @app.get("/api/status")
 def get_status() -> dict:
@@ -45,20 +57,20 @@ def get_status() -> dict:
 
     tasks = [
         _serialize(doc)
-        for doc in db[config.MONGO_COLLECTION_TASKS]
-        .find({}, sort=[("created_at", -1)], limit=30)
+        for doc in db[config.MONGO_COLLECTION_TASKS].find(
+            {}, sort=[("created_at", -1)], limit=30
+        )
     ]
 
     executions = [
         _serialize(doc)
-        for doc in db[config.MONGO_COLLECTION_JOB_EXECUTIONS]
-        .find({}, sort=[("claimed_at", -1)], limit=20)
+        for doc in db[config.MONGO_COLLECTION_JOB_EXECUTIONS].find(
+            {}, sort=[("claimed_at", -1)], limit=20
+        )
     ]
 
     jobs = [
-        _serialize(doc)
-        for doc in db[config.MONGO_COLLECTION_SCHEDULED_JOBS]
-        .find({})
+        _serialize(doc) for doc in db[config.MONGO_COLLECTION_SCHEDULED_JOBS].find({})
     ]
 
     active_tasks = sum(1 for t in tasks if t.get("status") in ("pending", "running"))
@@ -80,13 +92,16 @@ def cancel_task(task_id: str) -> dict:
         raise HTTPException(status_code=404, detail="Task not found")
     if status not in (TaskStatus.PENDING, TaskStatus.RUNNING):
         raise HTTPException(status_code=409, detail=f"Task is already {status.value}")
-    task_store.update_status(task_id, TaskStatus.CANCELLED, error="Cancelled via dashboard")
+    task_store.update_status(
+        task_id, TaskStatus.CANCELLED, error="Cancelled via dashboard"
+    )
     return {"ok": True, "task_id": task_id}
 
 
 @app.post("/api/jobs/{job_id}/disable")
 def disable_job(job_id: str) -> dict:
     from src.scheduler.service import get_scheduler
+
     scheduler = get_scheduler()
     ok = scheduler.disable_job(job_id) if scheduler else job_store.disable_job(job_id)
     if not ok:
@@ -97,6 +112,7 @@ def disable_job(job_id: str) -> dict:
 @app.post("/api/jobs/{job_id}/enable")
 def enable_job(job_id: str) -> dict:
     from src.scheduler.service import get_scheduler
+
     scheduler = get_scheduler()
     ok = scheduler.enable_job(job_id) if scheduler else job_store.enable_job(job_id)
     if not ok:
@@ -155,6 +171,10 @@ _DASHBOARD_HTML = """<!DOCTYPE html>
   .btn:hover { opacity: .8; }
   .btn-disable { background: rgba(239,68,68,.15); color: #f87171; }
   .btn-enable  { background: rgba(34,197,94,.15);  color: #4ade80; }
+  .header-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .btn-refresh-now { background: rgba(255,255,255,.08); color: var(--text); }
+  .btn-auto.on { background: rgba(99,102,241,.25); color: #a5b4fc; }
+  .btn-auto.off { background: rgba(107,114,128,.15); color: var(--muted); }
   .steps { display: flex; flex-direction: column; gap: 4px; min-width: 260px; }
   .step { background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
   .step-header { display: flex; align-items: center; gap: 6px; padding: 5px 8px; cursor: pointer; user-select: none; }
@@ -176,7 +196,11 @@ _DASHBOARD_HTML = """<!DOCTYPE html>
   <span class="pulse"></span>
   <h1>Bluteksbot</h1>
   <span class="badge" id="env">—</span>
-  <span class="refresh" id="refresh-ts">Refreshing…</span>
+  <div class="header-actions">
+    <button type="button" class="btn btn-auto on" id="btn-auto" onclick="toggleAutoRefresh()" title="Poll /api/status every 3s">Auto update: On</button>
+    <button type="button" class="btn btn-refresh-now" id="btn-refresh-now" onclick="refresh()">Refresh now</button>
+    <span class="refresh" id="refresh-ts">Refreshing…</span>
+  </div>
 </header>
 <main>
   <div class="stats">
@@ -259,12 +283,6 @@ function stepDur(ms) {
   return (ms/1000).toFixed(1) + 's';
 }
 
-function stepsCount(steps) {
-  if (!steps || !steps.length) return '<span style="color:var(--muted);font-size:12px">—</span>';
-  const tools = [...new Set(steps.map(s => s.tool))].slice(0, 3).join(', ');
-  return `<span style="font-size:11px;color:var(--muted)">${steps.length} step${steps.length > 1 ? 's' : ''} &middot; ${tools}${steps.length > 3 ? '…' : ''}</span>`;
-}
-
 let _stepIdx = 0;
 function renderSteps(steps) {
   if (!steps || !steps.length) return '<span style="color:var(--muted);font-size:12px">—</span>';
@@ -294,6 +312,37 @@ function toggleStep(id) {
 }
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+const POLL_MS = 3000;
+const LS_AUTO = 'bluteksbot_dashboard_auto_refresh';
+let autoIntervalId = null;
+
+function isAutoRefreshEnabled() {
+  const v = localStorage.getItem(LS_AUTO);
+  if (v === null) return true;
+  return v === '1';
+}
+
+function setAutoRefresh(enabled) {
+  localStorage.setItem(LS_AUTO, enabled ? '1' : '0');
+  const btn = document.getElementById('btn-auto');
+  if (btn) {
+    btn.textContent = enabled ? 'Auto update: On' : 'Auto update: Off';
+    btn.classList.toggle('on', enabled);
+    btn.classList.toggle('off', !enabled);
+  }
+  if (autoIntervalId) {
+    clearInterval(autoIntervalId);
+    autoIntervalId = null;
+  }
+  if (enabled) autoIntervalId = setInterval(refresh, POLL_MS);
+}
+
+function toggleAutoRefresh() {
+  const next = !isAutoRefreshEnabled();
+  setAutoRefresh(next);
+  if (next) refresh();
 }
 
 async function cancelTask(taskId) {
@@ -344,7 +393,7 @@ async function refresh() {
         return `<tr>
           <td>${statusBadge(t.status)}</td>
           <td><span class="input-text">${trunc(t.input, 80)}</span></td>
-          <td>${(t.status === 'pending' || t.status === 'running') ? renderSteps(t.steps) : stepsCount(t.steps)}</td>
+          <td>${renderSteps(t.steps)}</td>
           <td>${outcome}</td>
           <td><span class="ts">${fmt(t.created_at)}</span></td>
           <td>${cancelBtn}</td>
@@ -397,7 +446,7 @@ async function refresh() {
 }
 
 refresh();
-setInterval(refresh, 3000);
+setAutoRefresh(isAutoRefreshEnabled());
 </script>
 </body>
 </html>
