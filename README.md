@@ -206,6 +206,8 @@ make lint    # ruff + mypy
 make clean   # remove caches + volumes
 ```
 
+Use the `Black Formatter` extension to format python files.
+
 > This project was scaffolded and built in a single day using [Cursor IDE](https://cursor.sh) — a good example of what AI-assisted development can achieve when paired with the right frameworks.
 
 ## Adding a new agent tool
@@ -213,4 +215,5 @@ make clean   # remove caches + volumes
 1. Create (or add to) `src/tools/agent_tools.py` with a `@tool` decorated function
 2. Add it to the `ALL_TOOLS` list at the bottom of that file
 3. Update `ORCHESTRATOR_SYSTEM` in `src/llms/prompts.py` to describe the new tool
+
 

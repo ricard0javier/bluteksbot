@@ -28,13 +28,14 @@ def setup_logging() -> None:
     log_dir = Path(config.LOG_FILE).parent
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    level = getattr(logging, config.LOG_LEVEL.upper(), logging.INFO)
     fmt = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
     plain_fmt = logging.Formatter(fmt)
 
     console = logging.StreamHandler()
-    console.setFormatter(_ColorFormatter(fmt) if config.ENVIRONMENT == "development" else plain_fmt)
+    console.setFormatter(
+        _ColorFormatter(fmt) if config.ENVIRONMENT == "development" else plain_fmt
+    )
 
     file_handler = logging.FileHandler(config.LOG_FILE)
     file_handler.setFormatter(plain_fmt)
@@ -43,11 +44,18 @@ def setup_logging() -> None:
     # inside setup_logging()
     is_debug = config.LOG_LEVEL.upper() == "DEBUG"
     # keep root conservative to avoid global dependency noise
-    root_level = logging.INFO if is_debug else getattr(logging, config.LOG_LEVEL.upper(), logging.INFO)
+    root_level = (
+        logging.INFO
+        if is_debug
+        else getattr(logging, config.LOG_LEVEL.upper(), logging.INFO)
+    )
     logging.basicConfig(level=root_level, handlers=[console, file_handler])
     # your app namespace
-    logging.getLogger("httpx").setLevel(logging.DEBUG if is_debug else logging.WARNING)
     logging.getLogger("src").setLevel(logging.DEBUG if is_debug else root_level)
     # dependency allowlist (from env/config)
-    for name in config.LOG_DEBUG_DEPENDENCIES:   # e.g. ["httpx", "telegram"]
-        logging.getLogger(name).setLevel(logging.DEBUG if is_debug else logging.WARNING)
+
+    for name in config.LOG_DEBUG_DEPENDENCIES:  # e.g. ["httpx", "telegram"]
+        if name is not "":
+            logging.getLogger(name).setLevel(
+                logging.DEBUG if is_debug else logging.WARNING
+            )

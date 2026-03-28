@@ -3,4 +3,4 @@
 - [ ] Add support for MCPo server to load tools dynamically
 - [ ] Allow the binding of tools to agents using configuration files
 - [ ] Use mongo db retriever later to [enhance rag](https://www.mongodb.com/docs/atlas/ai-integrations/langgraph/)
-- [ ] 
+- [ ] Be able to send images
