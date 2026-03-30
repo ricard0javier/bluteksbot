@@ -1,4 +1,5 @@
 """LangChain tools that allow the agent to send media back to the user via Telegram."""
+
 import logging
 import os
 
@@ -67,8 +68,7 @@ def send_telegram_document(file_path: str, caption: str, config: RunnableConfig)
 def send_telegram_voice(file_path: str, config: RunnableConfig) -> str:
     """Send an audio file as a voice message to the user in the current Telegram chat.
 
-    The file should be OGG/Opus format for best Telegram compatibility, but MP3
-    and other formats are also accepted (Telegram will convert them).
+    IMPORTANT:The file must be OGG/Opus format.
 
     Args:
         file_path: Absolute or workspace-relative path to the audio file.
@@ -90,7 +90,9 @@ def send_telegram_voice(file_path: str, config: RunnableConfig) -> str:
 
 
 @tool
-def send_telegram_audio(file_path: str, title: str, caption: str, config: RunnableConfig) -> str:
+def send_telegram_audio(
+    file_path: str, title: str, caption: str, config: RunnableConfig
+) -> str:
     """Send an audio file as a music track to the user in the current Telegram chat.
 
     Displayed with a player in Telegram (not as a voice note). Use for music or

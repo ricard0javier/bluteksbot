@@ -96,7 +96,9 @@ BACKOFF_MAX_SECONDS: float = float(os.getenv("BACKOFF_MAX_SECONDS", "60.0"))
 BACKOFF_MULTIPLIER: float = float(os.getenv("BACKOFF_MULTIPLIER", "2.0"))
 
 # ── Chat preferences ──────────────────────────────────────────────────────────
-MONGO_COLLECTION_PREFERENCES: str = os.getenv("MONGO_COLLECTION_PREFERENCES", "chat_preferences")
+MONGO_COLLECTION_PREFERENCES: str = os.getenv(
+    "MONGO_COLLECTION_PREFERENCES", "chat_preferences"
+)
 AVAILABLE_MODELS: list[str] = [
     m.strip()
     for m in os.getenv(
