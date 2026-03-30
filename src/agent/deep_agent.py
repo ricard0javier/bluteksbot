@@ -96,10 +96,7 @@ def build_agent(model_name: str = ""):
 
     # CompositeBackend routes /conversation_history/ to MongoDB so the built-in
     # SummarizationMiddleware persists summaries there instead of the filesystem.
-    fs_backend = FilesystemBackend(
-        root_dir=config.DEEP_AGENT_WORKSPACE,
-        virtual_mode=config.ENVIRONMENT == "development",
-    )
+    fs_backend = FilesystemBackend(root_dir=config.DEEP_AGENT_WORKSPACE)
     conv_history_backend = MongoDBBackend(
         collection=get_db()[config.MONGO_COLLECTION_CONV_HISTORY],
     )
@@ -123,7 +120,13 @@ def build_agent(model_name: str = ""):
         # https://www.anthropic.com/engineering/advanced-tool-use
         # https://forum.langchain.com/t/are-dynamic-tool-lists-allowed-when-using-create-agent/1920/16
         # https://docs.langchain.com/oss/python/langchain/agents#runtime-tool-registration
-        tools=[*ALL_TOOLS, *SCHEDULE_TOOLS, *TELEGRAM_TOOLS, manage_memory, search_memory],
+        tools=[
+            *ALL_TOOLS,
+            *SCHEDULE_TOOLS,
+            *TELEGRAM_TOOLS,
+            manage_memory,
+            search_memory,
+        ],
         system_prompt=ORCHESTRATOR_SYSTEM,
         checkpointer=checkpointer,
         store=store,

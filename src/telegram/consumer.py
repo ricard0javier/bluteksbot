@@ -21,9 +21,17 @@ from src.telegram.state import set_bot
 logger = logging.getLogger(__name__)
 
 _ALL_CONTENT_TYPES = [
-    "text", "photo", "document", "voice", "audio",
-    "video", "video_note", "animation", "sticker",
-    "location", "contact",
+    "text",
+    "photo",
+    "document",
+    "voice",
+    "audio",
+    "video",
+    "video_note",
+    "animation",
+    "sticker",
+    "location",
+    "contact",
 ]
 
 
@@ -43,7 +51,11 @@ def _download_file(bot: telebot.TeleBot, file_id: str) -> bytes | None:
         size_bytes = getattr(file_info, "file_size", 0) or 0
         max_bytes = config.TELEGRAM_MAX_FILE_SIZE_MB * 1024 * 1024
         if size_bytes > max_bytes:
-            logger.warning("File %s is %.1f MB — skipping download.", file_id, size_bytes / 1024 / 1024)
+            logger.warning(
+                "File %s is %.1f MB — skipping download.",
+                file_id,
+                size_bytes / 1024 / 1024,
+            )
             return None
         return bot.download_file(file_info.file_path)
     except Exception:
@@ -54,13 +66,15 @@ def _download_file(bot: telebot.TeleBot, file_id: str) -> bytes | None:
 def _save_to_workspace(file_bytes: bytes, filename: str, chat_id: int) -> str | None:
     """Persist uploaded bytes into the agent workspace; return the workspace-relative path."""
     try:
-        upload_dir = os.path.join(config.DEEP_AGENT_WORKSPACE, "workspace", "uploads", str(chat_id))
+        upload_dir = os.path.join(
+            config.DEEP_AGENT_WORKSPACE, "workspace", "uploads", str(chat_id)
+        )
         os.makedirs(upload_dir, exist_ok=True)
         filepath = os.path.join(upload_dir, filename)
         with open(filepath, "wb") as fh:
             fh.write(file_bytes)
         # Return the virtual path the agent's filesystem tools understand
-        return f"/workspace/uploads/{chat_id}/{filename}"
+        return f"{config.DEEP_AGENT_WORKSPACE}/uploads/{chat_id}/{filename}"
     except Exception:
         logger.warning("Failed to save uploaded file to workspace.", exc_info=True)
         return None
@@ -118,12 +132,14 @@ def _build_agent_input(message: telebot.types.Message, bot: telebot.TeleBot) -> 
         largest = max(message.photo, key=lambda p: p.file_size or 0)
         img_bytes = _download_file(bot, largest.file_id)
         if img_bytes:
-            media_content.append({
-                "type": "image",
-                "mime_type": "image/jpeg",
-                "bytes_b64": base64.b64encode(img_bytes).decode(),
-                "name": "photo.jpg",
-            })
+            media_content.append(
+                {
+                    "type": "image",
+                    "mime_type": "image/jpeg",
+                    "bytes_b64": base64.b64encode(img_bytes).decode(),
+                    "name": "photo.jpg",
+                }
+            )
         if not text:
             text = "[Photo]"
 
@@ -143,7 +159,9 @@ def _build_agent_input(message: telebot.types.Message, bot: telebot.TeleBot) -> 
                     inline = doc_bytes.decode("utf-8")
                     file_note = f"[File: {filename}]\n{inline}"
                 except Exception:
-                    file_note = f"[File: {filename} ({mime}) — could not save or decode]"
+                    file_note = (
+                        f"[File: {filename} ({mime}) — could not save or decode]"
+                    )
             text = f"{text}\n{file_note}".strip() if text else file_note
         elif not text:
             text = f"[Document: {doc.file_name or 'file'} — download failed]"
@@ -218,7 +236,9 @@ class TelegramConsumer:
         def handle_message(message: telebot.types.Message) -> None:
             self._process(message)
 
-        @self._bot.callback_query_handler(func=lambda call: call.data.startswith("cancel:"))
+        @self._bot.callback_query_handler(
+            func=lambda call: call.data.startswith("cancel:")
+        )
         def handle_cancel_callback(call: telebot.types.CallbackQuery) -> None:
             from src.persistence.task_store import update_status, get_status
             from src.persistence.models import TaskStatus
@@ -236,7 +256,9 @@ class TelegramConsumer:
                 return
 
             update_status(task_id, TaskStatus.CANCELLED)
-            logger.info("Task %s cancelled by user (chat=%s).", task_id, call.message.chat.id)
+            logger.info(
+                "Task %s cancelled by user (chat=%s).", task_id, call.message.chat.id
+            )
             self._bot.answer_callback_query(call.id, "Task cancelled.")
             self._bot.edit_message_text(
                 "Task cancelled. ✓",
@@ -244,7 +266,9 @@ class TelegramConsumer:
                 message_id=call.message.message_id,
             )
 
-        @self._bot.callback_query_handler(func=lambda call: call.data.startswith("model:"))
+        @self._bot.callback_query_handler(
+            func=lambda call: call.data.startswith("model:")
+        )
         def handle_model_callback(call: telebot.types.CallbackQuery) -> None:
             from src.persistence.preferences_store import get_model, set_model
 
@@ -257,7 +281,12 @@ class TelegramConsumer:
                 return
 
             set_model(chat_id, chosen)
-            logger.info("Model switched via button (chat=%s): %s → %s.", chat_id, current, chosen)
+            logger.info(
+                "Model switched via button (chat=%s): %s → %s.",
+                chat_id,
+                current,
+                chosen,
+            )
             self._bot.answer_callback_query(call.id, f"Switched to {chosen} ✓")
             self._bot.edit_message_text(
                 f"*Active model:* `{chosen}` ✓",
@@ -311,16 +340,21 @@ class TelegramConsumer:
 
         try:
             task_id = create_task(task)
-            status_msg = self._bot.send_message(message.chat.id, "\u23f3 Working on it\u2026")
+            status_msg = self._bot.send_message(
+                message.chat.id, "\u23f3 Working on it\u2026"
+            )
             status_msg_id = status_msg.message_id
 
             from src.persistence.preferences_store import get_model
+
             orchestrator = Orchestrator(bot=self._bot, model=get_model(message.chat.id))
             self._executor.submit(
                 _run_task_safe, orchestrator, task_id, status_msg_id, raw
             )
         except Exception as exc:
-            logger.error("Failed to dispatch task (chat=%s).", message.chat.id, exc_info=True)
+            logger.error(
+                "Failed to dispatch task (chat=%s).", message.chat.id, exc_info=True
+            )
             send_to_dlq(original_message=raw, error=exc)
 
     def run(self) -> None:

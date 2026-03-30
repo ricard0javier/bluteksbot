@@ -19,7 +19,7 @@ def execute_python(code: str) -> str:
 
 
 def execute_shell(command: str, timeout: int | None = None) -> str:
-    """Runs an arbitrary bash command in /workspace. Returns stdout/stderr."""
+    f"""Runs an arbitrary bash command in {config.DEEP_AGENT_WORKSPACE}. Returns stdout/stderr."""
     effective_timeout = timeout if timeout is not None else config.CODE_EXECUTOR_TIMEOUT
     return _run(command, shell=True, timeout=effective_timeout)
 

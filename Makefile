@@ -2,12 +2,14 @@
 
 ENV_NAME = bluteksbot
 CONDA_RUN = conda run -n $(ENV_NAME) --no-capture-output
+DEEP_AGENT_WORKSPACE = ./tmp
 
 install:
 	conda env create -f environment.yml || conda env update -f environment.yml --prune
 
 dev:
 	cp -n .env.example .env || true
+	mkdir -p logs "${DEEP_AGENT_WORKSPACE}"
 	docker compose up mongo litellm -d
 	PYTHONPATH=. $(CONDA_RUN) python -m src.main
 
