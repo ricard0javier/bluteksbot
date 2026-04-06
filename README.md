@@ -113,6 +113,7 @@ make dev
 | `LANGSMITH_TRACING`              | `false`                  | Set to `true` to enable LangSmith tracing                                       |
 | `LANGSMITH_API_KEY`              | *(empty)*                | Required when `LANGSMITH_TRACING=true`                                          |
 | `LANGSMITH_PROJECT`              | `bluteksbot`             | LangSmith project name                                                          |
+| `TUNNEL_TOKEN`                   | *(empty)*                | Cloudflare tunnel key to expose functionality using a custom domain             |
 
 
 ---

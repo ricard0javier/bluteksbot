@@ -10,7 +10,7 @@ install:
 dev:
 	cp -n .env.example .env || true
 	mkdir -p logs "${DEEP_AGENT_WORKSPACE}"
-	docker compose up mongo litellm -d
+	docker compose up mongo litellm cloudflare-tunnel -d
 	PYTHONPATH=. $(CONDA_RUN) python -m src.main
 
 build:
