@@ -57,7 +57,7 @@ def build_agent(model_name: str = ""):
 
     embeddings = OpenAIEmbeddings(
         model=config.LITELLM_EMBEDDING_MODEL,
-        base_url=f"{config.LITELLM_BASE_URL}/v1",
+        base_url=config.LITELLM_BASE_URL,
         api_key=config.LITELLM_API_KEY,
     )
 
@@ -84,7 +84,7 @@ def build_agent(model_name: str = ""):
     model = init_chat_model(
         model=model_name,
         model_provider="openai",
-        base_url=f"{config.LITELLM_BASE_URL}/v1",
+        base_url=config.LITELLM_BASE_URL,
         api_key=config.LITELLM_API_KEY,
         temperature=config.LITELLM_TEMPERATURE,
         max_tokens=config.LITELLM_MAX_TOKENS,

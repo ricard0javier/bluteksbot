@@ -92,6 +92,7 @@ make dev
 | -------------------------------- | ------------------------ | ------------------------------------------------------------------------------- |
 | `TELEGRAM_ALLOWED_USER_IDS`      | *(empty = allow all)*    | Comma-separated Telegram user IDs to whitelist                                  |
 | `LITELLM_ORCHESTRATOR_MODEL`     | `claude-sonnet-4-5`      | Model for the orchestrator layer (routing/planning)                             |
+| `LITELLM_BASE_URL`               | `http://litellm:4000/v1` | OpenAI Base URL                                                                 |
 | `LITELLM_WORKER_MODEL`           | `minimax/minimax-m2`     | Model used by the Deep Agent for all tasks                                      |
 | `LITELLM_MAX_TOKENS`             | `4096`                   | Max tokens per LLM call                                                         |
 | `LITELLM_TEMPERATURE`            | `0.2`                    | Sampling temperature                                                            |

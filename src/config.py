@@ -38,7 +38,7 @@ MONGO_COLLECTION_CONV_HISTORY: str = os.getenv(
 )
 
 # ── LiteLLM ───────────────────────────────────────────────────────────────────
-LITELLM_BASE_URL: str = os.getenv("LITELLM_BASE_URL", "http://localhost:4000")
+LITELLM_BASE_URL: str = os.getenv("LITELLM_BASE_URL", "http://localhost:4000/v1")
 LITELLM_API_KEY: str = os.getenv("LITELLM_API_KEY", "sk-dummy")
 LITELLM_ORCHESTRATOR_MODEL: str = os.getenv(
     "LITELLM_ORCHESTRATOR_MODEL", "claude-sonnet-4-5"

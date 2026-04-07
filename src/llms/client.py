@@ -20,7 +20,7 @@ def _client() -> OpenAI:
     """Singleton OpenAI client pointed at the self-hosted LiteLLM proxy."""
     return OpenAI(
         api_key=config.LITELLM_API_KEY,
-        base_url=f"{config.LITELLM_BASE_URL}/v1",
+        base_url=config.LITELLM_BASE_URL,
     )
 
 
