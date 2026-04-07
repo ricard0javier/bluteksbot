@@ -45,9 +45,10 @@ def build_agent(model_name: str = ""):
     from src.llms.prompts import ORCHESTRATOR_SYSTEM
     from src.persistence.client import get_client, get_db
     from src.persistence.mongodb_backend import MongoDBBackend
-    from src.tools.agent_tools import ALL_TOOLS
+    from src.tools.agent_tools import AGENT_TOOLS
     from src.tools.schedule_tool import SCHEDULE_TOOLS
     from src.tools.telegram_tools import TELEGRAM_TOOLS
+    from src.agent.LoggingMiddleware import LoggingMiddleware
 
     checkpointer = MongoDBSaver(
         client=get_client(),
@@ -121,7 +122,7 @@ def build_agent(model_name: str = ""):
         # https://forum.langchain.com/t/are-dynamic-tool-lists-allowed-when-using-create-agent/1920/16
         # https://docs.langchain.com/oss/python/langchain/agents#runtime-tool-registration
         tools=[
-            *ALL_TOOLS,
+            *AGENT_TOOLS,
             *SCHEDULE_TOOLS,
             *TELEGRAM_TOOLS,
             manage_memory,
@@ -131,6 +132,7 @@ def build_agent(model_name: str = ""):
         checkpointer=checkpointer,
         store=store,
         backend=backend,
+        middleware=[LoggingMiddleware()],
     )
 
     logger.info("Deep Agent built (model=%s).", model_name)

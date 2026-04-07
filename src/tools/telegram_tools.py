@@ -15,12 +15,9 @@ def _chat_id(config: RunnableConfig) -> int:
 
 @tool
 def send_telegram_photo(file_path: str, caption: str, config: RunnableConfig) -> str:
-    """Send a photo/image file to the user in the current Telegram chat.
-
-    Args:
-        file_path: Absolute or workspace-relative path to the image file
-                   (JPEG, PNG, GIF, WebP, etc.).
-        caption: Optional caption shown below the photo (can be empty string).
+    """
+    Upload an image from disk and show it as a photo in the current Telegram chat (optional caption).
+    Use when the user should see a picture inline (screenshots, charts, JPEG/PNG/GIF/WebP). Prefer send_telegram_document if they need the original file as a generic attachment without photo handling, or for non-images. Do not use for video, voice notes, or music—use send_telegram_video, send_telegram_voice, or send_telegram_audio.
     """
     from src.telegram.state import get_bot
 
@@ -40,13 +37,9 @@ def send_telegram_photo(file_path: str, caption: str, config: RunnableConfig) ->
 
 @tool
 def send_telegram_document(file_path: str, caption: str, config: RunnableConfig) -> str:
-    """Send any file as a document/attachment to the user in the current Telegram chat.
-
-    Suitable for PDFs, spreadsheets, code files, archives, or any binary/text file.
-
-    Args:
-        file_path: Absolute or workspace-relative path to the file.
-        caption: Optional caption shown with the document (can be empty string).
+    """
+    Send a file from disk as a Telegram document (downloadable attachment) in the current chat.
+    Use for PDFs, archives, spreadsheets, source files, or any path that should arrive as a file, not inline media. Prefer send_telegram_photo for images meant to display as a picture, send_telegram_video for video, send_telegram_voice/send_telegram_audio for audio. Not for email—use send_email_tool if the user asked for email delivery.
     """
     from src.telegram.state import get_bot
 
@@ -66,12 +59,9 @@ def send_telegram_document(file_path: str, caption: str, config: RunnableConfig)
 
 @tool
 def send_telegram_voice(file_path: str, config: RunnableConfig) -> str:
-    """Send an audio file as a voice message to the user in the current Telegram chat.
-
-    IMPORTANT:The file must be OGG/Opus format.
-
-    Args:
-        file_path: Absolute or workspace-relative path to the audio file.
+    """
+    Send a voice note from disk (Telegram expects OGG Opus) in the current chat.
+    Use for short spoken-style messages that should appear as a voice bubble. Prefer send_telegram_audio for music or longer tracks with a player UI (MP3/M4A, title metadata). Do not use for images, video, or arbitrary documents.
     """
     from src.telegram.state import get_bot
 
@@ -93,15 +83,9 @@ def send_telegram_voice(file_path: str, config: RunnableConfig) -> str:
 def send_telegram_audio(
     file_path: str, title: str, caption: str, config: RunnableConfig
 ) -> str:
-    """Send an audio file as a music track to the user in the current Telegram chat.
-
-    Displayed with a player in Telegram (not as a voice note). Use for music or
-    longer audio. For short spoken messages prefer send_telegram_voice.
-
-    Args:
-        file_path: Absolute or workspace-relative path to the audio file (MP3, M4A, etc.).
-        title: Track title shown in Telegram's audio player.
-        caption: Optional caption (can be empty string).
+    """
+    Send an audio file as a music-style message with player UI and optional title/caption in the current chat.
+    Use for songs, podcasts, or longer audio where Telegram should show a player (typical formats e.g. MP3/M4A). Prefer send_telegram_voice for short voice-note style OGG Opus clips. Do not use for video or still images.
     """
     from src.telegram.state import get_bot
 
@@ -121,11 +105,9 @@ def send_telegram_audio(
 
 @tool
 def send_telegram_video(file_path: str, caption: str, config: RunnableConfig) -> str:
-    """Send a video file to the user in the current Telegram chat.
-
-    Args:
-        file_path: Absolute or workspace-relative path to the video file (MP4 preferred).
-        caption: Optional caption shown below the video (can be empty string).
+    """
+    Upload a video file from disk and play it in the current Telegram chat (optional caption; MP4 is typical).
+    Use when the user should receive motion/video, not a static image or audio-only file. Prefer send_telegram_photo for images, send_telegram_document if they need the raw file without inline playback, send_telegram_audio/send_telegram_voice for sound-only.
     """
     from src.telegram.state import get_bot
 
