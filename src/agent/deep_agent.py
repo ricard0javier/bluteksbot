@@ -19,7 +19,11 @@ def _configure_langsmith() -> None:
 
 
 @lru_cache(maxsize=None)
-def build_agent(model_name: str = ""):
+def build_agent(
+    model_name: str = "",
+    include_telegram_tools: bool = True,
+    include_schedule_tools: bool = True,
+):
     """Build and cache a compiled Deep Agent graph per model.
 
     Args:
@@ -115,19 +119,20 @@ def build_agent(model_name: str = ""):
     else:
         logger.info("Summarization disabled (SUMMARIZATION_TRIGGER_TOKENS=0).")
 
+    tools = [*AGENT_TOOLS]
+    if include_schedule_tools:
+        tools.extend(SCHEDULE_TOOLS)
+    if include_telegram_tools:
+        tools.extend(TELEGRAM_TOOLS)
+    tools.extend([manage_memory, search_memory])
+
     agent = create_deep_agent(
         model=model,
         # TODO: implement dynamic tool loading
         # https://www.anthropic.com/engineering/advanced-tool-use
         # https://forum.langchain.com/t/are-dynamic-tool-lists-allowed-when-using-create-agent/1920/16
         # https://docs.langchain.com/oss/python/langchain/agents#runtime-tool-registration
-        tools=[
-            *AGENT_TOOLS,
-            *SCHEDULE_TOOLS,
-            *TELEGRAM_TOOLS,
-            manage_memory,
-            search_memory,
-        ],
+        tools=tools,
         system_prompt=ORCHESTRATOR_SYSTEM,
         checkpointer=checkpointer,
         store=store,

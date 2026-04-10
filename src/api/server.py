@@ -1,17 +1,240 @@
-"""Observability dashboard — FastAPI server exposing live agent state with job controls."""
+"""Observability dashboard + OpenAI-compatible API endpoints."""
 
-from datetime import datetime, timezone
-from typing import Any
+import json
+import logging
+import secrets
+import time
+from collections.abc import Iterator
+from datetime import UTC, datetime
+from typing import Any, Literal
+from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.responses import HTMLResponse, StreamingResponse
+from pydantic import BaseModel, Field
 
 from src import config
+from src.agent.deep_agent import build_agent
 from src.persistence import job_store, task_store
 from src.persistence.client import get_db
 from src.persistence.models import TaskStatus
 
 app = FastAPI(title="Bluteksbot Dashboard", docs_url=None, redoc_url=None)
+logger = logging.getLogger(__name__)
+
+
+class ChatMessage(BaseModel):
+    role: Literal["system", "user", "assistant", "tool"]
+    content: str | list[dict[str, Any]]
+    name: str | None = None
+
+
+class ChatCompletionsRequest(BaseModel):
+    model: str = Field(default_factory=lambda: config.LITELLM_WORKER_MODEL)
+    messages: list[ChatMessage]
+    stream: bool = False
+    user: str | None = None
+    conversation_id: str | None = None
+
+
+class _ChoiceMessage(BaseModel):
+    role: Literal["assistant"] = "assistant"
+    content: str
+
+
+class _Choice(BaseModel):
+    index: int = 0
+    message: _ChoiceMessage
+    finish_reason: Literal["stop"] = "stop"
+
+
+class ChatCompletionsResponse(BaseModel):
+    id: str
+    object: Literal["chat.completion"] = "chat.completion"
+    created: int
+    model: str
+    choices: list[_Choice]
+    conversation_id: str
+    usage: dict[str, int]
+
+
+def _extract_text_content(content: str | list[dict[str, Any]]) -> str:
+    if isinstance(content, str):
+        return content
+    parts: list[str] = []
+    for block in content:
+        if block.get("type") == "text":
+            text = block.get("text")
+            if isinstance(text, str) and text.strip():
+                parts.append(text)
+    return "\n".join(parts).strip()
+
+
+def _last_user_message(messages: list[ChatMessage]) -> str:
+    for msg in reversed(messages):
+        if msg.role == "user":
+            text = _extract_text_content(msg.content)
+            if text:
+                return text
+    raise HTTPException(status_code=400, detail="No non-empty user message found")
+
+
+def _to_agent_messages(messages: list[ChatMessage]) -> list[dict[str, Any]]:
+    agent_messages: list[dict[str, Any]] = []
+    for msg in messages:
+        text = _extract_text_content(msg.content)
+        if not text:
+            continue
+        agent_messages.append({"role": msg.role, "content": text})
+    if not agent_messages:
+        raise HTTPException(status_code=400, detail="No non-empty messages found")
+    return agent_messages
+
+
+def _estimate_usage(prompt: str, completion: str) -> dict[str, int]:
+    # Lightweight estimate to keep OpenAI shape without tokenizer dependency.
+    prompt_tokens = max(1, len(prompt) // 4)
+    completion_tokens = max(1, len(completion) // 4)
+    return {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": prompt_tokens + completion_tokens,
+    }
+
+
+def _require_bearer_token(authorization: str | None = Header(default=None)) -> None:
+    expected = config.OPENAI_API_BEARER_TOKEN.strip()
+    if not expected:
+        raise HTTPException(
+            status_code=503,
+            detail="OpenAI API auth is not configured",
+        )
+
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing Authorization header")
+
+    parts = authorization.split(" ", 1)
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Invalid Authorization header")
+
+    provided = parts[1].strip()
+    if not secrets.compare_digest(provided, expected):
+        raise HTTPException(status_code=401, detail="Invalid bearer token")
+
+
+def _validate_chat_request(req: ChatCompletionsRequest) -> None:
+    if not req.messages:
+        raise HTTPException(status_code=400, detail="messages must not be empty")
+
+    if req.model not in config.AVAILABLE_MODELS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported model '{req.model}'. Available: {config.AVAILABLE_MODELS}",
+        )
+
+
+def _run_completion(req: ChatCompletionsRequest, conversation_id: str) -> tuple[str, str]:
+    prompt = _last_user_message(req.messages)
+    input_messages = _to_agent_messages(req.messages)
+    api_agent = build_agent(
+        model_name=req.model,
+        include_telegram_tools=False,
+        include_schedule_tools=False,
+    )
+    api_agent.invoke(
+        {"messages": input_messages},
+        config={"configurable": {"thread_id": conversation_id}},
+    )
+    state = api_agent.get_state(
+        config={"configurable": {"thread_id": conversation_id}},
+    )
+    messages = state.values.get("messages", [])
+    completion = ""
+    for msg in reversed(messages):
+        content = getattr(msg, "content", None)
+        msg_type = getattr(msg, "type", None)
+        if msg_type == "ai" and content:
+            completion = str(content)
+            break
+    if not completion:
+        raise RuntimeError("No completion generated by agent")
+    return prompt, completion
+
+
+def _resolve_conversation_id(req: ChatCompletionsRequest, request: Request) -> str:
+    explicit = (req.conversation_id or "").strip()
+    if explicit:
+        return explicit
+
+    header_candidates = (
+        request.headers.get("x-conversation-id", ""),
+        request.headers.get("x-thread-id", ""),
+        request.headers.get("x-chat-id", ""),
+        request.headers.get("openai-conversation-id", ""),
+        request.headers.get("x-openwebui-conversation-id", ""),
+    )
+    for candidate in header_candidates:
+        value = candidate.strip()
+        if value:
+            return value
+
+    if req.user and req.user.strip():
+        return f"user:{req.user.strip()}"
+
+    return str(uuid4())
+
+
+def _sse_line(payload: dict[str, Any] | str) -> str:
+    if isinstance(payload, str):
+        return f"data: {payload}\n\n"
+    return f"data: {json.dumps(payload, ensure_ascii=True)}\n\n"
+
+
+def _chunk_text(text: str, size: int = 120) -> Iterator[str]:
+    for idx in range(0, len(text), size):
+        yield text[idx : idx + size]
+
+
+def _stream_chat_completion_sse(
+    *,
+    completion_id: str,
+    created: int,
+    model: str,
+    conversation_id: str,
+    completion: str,
+) -> Iterator[str]:
+    yield _sse_line(
+        {
+            "id": completion_id,
+            "object": "chat.completion.chunk",
+            "created": created,
+            "model": model,
+            "conversation_id": conversation_id,
+            "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}],
+        }
+    )
+    for piece in _chunk_text(completion):
+        yield _sse_line(
+            {
+                "id": completion_id,
+                "object": "chat.completion.chunk",
+                "created": created,
+                "model": model,
+                "conversation_id": conversation_id,
+                "choices": [{"index": 0, "delta": {"content": piece}, "finish_reason": None}],
+            }
+        )
+    yield _sse_line(
+        {
+            "id": completion_id,
+            "object": "chat.completion.chunk",
+            "created": created,
+            "model": model,
+            "conversation_id": conversation_id,
+            "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+        }
+    )
+    yield _sse_line("[DONE]")
 
 
 # ── Data helpers ──────────────────────────────────────────────────────────────
@@ -27,9 +250,7 @@ def _serialize(doc: dict) -> dict:
         elif isinstance(v, list):
             out[key] = [_serialize(i) if isinstance(i, dict) else i for i in v]
         else:
-            out[key] = (
-                str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v
-            )
+            out[key] = str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v
     return out
 
 
@@ -39,9 +260,9 @@ def _duration_s(start: datetime | None, end: datetime | None) -> float | None:
     if start:
         return round(
             (
-                datetime.now(timezone.utc) - start.replace(tzinfo=timezone.utc)
+                datetime.now(UTC) - start.replace(tzinfo=UTC)
                 if start.tzinfo is None
-                else datetime.now(timezone.utc) - start
+                else datetime.now(UTC) - start
             ).total_seconds(),
             1,
         )
@@ -51,15 +272,78 @@ def _duration_s(start: datetime | None, end: datetime | None) -> float | None:
 # ── API endpoints ─────────────────────────────────────────────────────────────
 
 
+@app.get("/v1/models", dependencies=[Depends(_require_bearer_token)])
+def list_models() -> dict[str, Any]:
+    data = [
+        {
+            "id": model_id,
+            "object": "model",
+            "created": 0,
+            "owned_by": "bluteksbot",
+        }
+        for model_id in config.AVAILABLE_MODELS
+    ]
+    return {"object": "list", "data": data}
+
+
+@app.post("/v1/chat/completions", dependencies=[Depends(_require_bearer_token)])
+def chat_completions(req: ChatCompletionsRequest, request: Request) -> Any:
+    try:
+        body = req.model_dump()
+    except Exception:
+        body = {"_error": "failed to serialize request model"}
+    logger.info(
+        "OpenAI chat request received: headers=%s body=%s",
+        dict(request.headers),
+        body,
+    )
+    _validate_chat_request(req)
+    conversation_id = _resolve_conversation_id(req, request)
+    completion_id = f"chatcmpl-{uuid4().hex}"
+    created = int(time.time())
+
+    try:
+        prompt, completion = _run_completion(req, conversation_id)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Agent invocation failed: {exc}") from exc
+
+    if req.stream:
+        return StreamingResponse(
+            _stream_chat_completion_sse(
+                completion_id=completion_id,
+                created=created,
+                model=req.model,
+                conversation_id=conversation_id,
+                completion=completion,
+            ),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    usage = _estimate_usage(prompt, completion)
+    return ChatCompletionsResponse(
+        id=completion_id,
+        created=created,
+        model=req.model,
+        conversation_id=conversation_id,
+        choices=[_Choice(message=_ChoiceMessage(content=completion))],
+        usage=usage,
+    )
+
+
 @app.get("/api/status")
 def get_status() -> dict:
     db = get_db()
 
     tasks = [
         _serialize(doc)
-        for doc in db[config.MONGO_COLLECTION_TASKS].find(
-            {}, sort=[("created_at", -1)], limit=30
-        )
+        for doc in db[config.MONGO_COLLECTION_TASKS].find({}, sort=[("created_at", -1)], limit=30)
     ]
 
     executions = [
@@ -69,9 +353,7 @@ def get_status() -> dict:
         )
     ]
 
-    jobs = [
-        _serialize(doc) for doc in db[config.MONGO_COLLECTION_SCHEDULED_JOBS].find({})
-    ]
+    jobs = [_serialize(doc) for doc in db[config.MONGO_COLLECTION_SCHEDULED_JOBS].find({})]
 
     active_tasks = sum(1 for t in tasks if t.get("status") in ("pending", "running"))
 
@@ -92,9 +374,7 @@ def cancel_task(task_id: str) -> dict:
         raise HTTPException(status_code=404, detail="Task not found")
     if status not in (TaskStatus.PENDING, TaskStatus.RUNNING):
         raise HTTPException(status_code=409, detail=f"Task is already {status.value}")
-    task_store.update_status(
-        task_id, TaskStatus.CANCELLED, error="Cancelled via dashboard"
-    )
+    task_store.update_status(task_id, TaskStatus.CANCELLED, error="Cancelled via dashboard")
     return {"ok": True, "task_id": task_id}
 
 
