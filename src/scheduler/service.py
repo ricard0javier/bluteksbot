@@ -1,11 +1,11 @@
 """Scheduler service — APScheduler backed by MongoDB, with distributed atomic-claim execution."""
+
 import logging
 import os
 import socket
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-import telebot
 from apscheduler.jobstores.mongodb import MongoDBJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -13,8 +13,9 @@ from apscheduler.triggers.cron import CronTrigger
 from src import config
 from src.persistence import job_store
 from src.persistence.client import get_client
-from src.persistence.models import JobStatus, ScheduledJob
+from src.persistence.models import ScheduledJob
 from src.scheduler.config_loader import load_from_file
+from src.telegram.producer import TelegramProducer
 
 if TYPE_CHECKING:
     pass
@@ -35,8 +36,8 @@ def get_scheduler() -> "SchedulerService | None":
 class SchedulerService:
     """Manages APScheduler lifecycle and job execution with distributed deduplication."""
 
-    def __init__(self, bot: telebot.TeleBot) -> None:
-        self._bot = bot
+    def __init__(self, telegram_producer: TelegramProducer) -> None:
+        self._telegram_producer = telegram_producer
         mongo_store = MongoDBJobStore(
             database=config.MONGO_DB,
             collection=config.MONGO_COLLECTION_APSCHEDULER,
@@ -46,7 +47,7 @@ class SchedulerService:
             jobstores={"default": mongo_store},
             timezone=config.SCHEDULER_TIMEZONE,
             job_defaults={
-                "coalesce": True,        # fire once on restart for all missed windows
+                "coalesce": True,  # fire once on restart for all missed windows
                 "misfire_grace_time": 300,  # 5-min grace period after missed fire
                 "max_instances": 1,
             },
@@ -120,7 +121,9 @@ class SchedulerService:
             if aps_job.id not in enabled_ids:
                 self._scheduler.remove_job(aps_job.id)
                 if aps_job.id in disabled_ids:
-                    logger.info("Removed stale APScheduler entry for disabled job '%s'.", aps_job.name)
+                    logger.info(
+                        "Removed stale APScheduler entry for disabled job '%s'.", aps_job.name
+                    )
 
         # Merge config-sourced jobs with DB jobs (config already upserted, avoid duplicates)
         registered_ids = {j.id for j in (extra_jobs or [])}
@@ -140,14 +143,13 @@ class SchedulerService:
 
     def _run_job(self, job_id: str) -> None:
         """Claim and execute one scheduled job firing. Called from APScheduler thread."""
-        from src.agent.orchestrator import Orchestrator
 
         job = job_store.get_job(job_id)
         if not job or not job.enabled:
             logger.info("Job %s not found or disabled — skipping.", job_id)
             return
 
-        fire_time = datetime.now(timezone.utc)
+        fire_time = datetime.now(UTC)
         execution = job_store.try_claim(
             job_id=job.id,
             job_name=job.name,
@@ -158,8 +160,7 @@ class SchedulerService:
         if execution is None:
             return  # another instance already claimed this firing
 
-        orchestrator = Orchestrator(bot=self._bot)
-        orchestrator.run_autonomous(
+        self._telegram_producer.run_autonomous(
             task_prompt=job.task_prompt,
             chat_id=job.chat_id,
             job_id=job.id,

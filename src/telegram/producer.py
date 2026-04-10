@@ -1,12 +1,12 @@
-"""Orchestrator — routes Telegram messages through the Deep Agent with streaming progress."""
+"""Telegram producer — routes Telegram messages through the Deep Agent with streaming progress."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import telebot
+from langgraph.graph.state import CompiledStateGraph
 
-from src.agent.deep_agent import build_agent
 from src.persistence import event_store, job_store, task_store
 from src.persistence.models import BotTask, Event, EventAggregate, JobStatus, TaskStatus, TaskStep
 
@@ -15,7 +15,7 @@ _CANCELLED_MSG = "Task was cancelled."
 logger = logging.getLogger(__name__)
 
 _THINKING_EMOJI = "\u23f3"  # ⏳
-_DONE_EMOJI = "\u2705"      # ✅
+_DONE_EMOJI = "\u2705"  # ✅
 
 
 def _send_safe(bot, chat_id: int, text: str) -> None:
@@ -26,10 +26,10 @@ def _send_safe(bot, chat_id: int, text: str) -> None:
         bot.send_message(chat_id, text)
 
 
-class Orchestrator:
-    def __init__(self, bot: telebot.TeleBot, model: str = "") -> None:
+class TelegramProducer:
+    def __init__(self, bot: telebot.TeleBot, agent: CompiledStateGraph) -> None:
         self._bot = bot
-        self._agent = build_agent(model)
+        self._agent = agent
 
     def run_task(self, task_id: str, status_msg_id: int, raw: dict[str, Any]) -> None:
         """Execute in a background thread: streams agent output, sends progress updates."""
@@ -82,7 +82,7 @@ class Orchestrator:
         Sends one Telegram message on completion (success or unrecoverable error).
         All state is persisted to MongoDB via task_store and job_store.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         task = BotTask(
             causation_id=f"cron-{job_id}-{now.isoformat()}",
             chat_id=chat_id,
@@ -90,9 +90,7 @@ class Orchestrator:
         )
         task_id = task_store.create(task)
         task_store.update_status(task_id, TaskStatus.RUNNING)
-        job_store.update_execution(
-            execution_id, JobStatus.RUNNING, task_id=task_id, started_at=now
-        )
+        job_store.update_execution(execution_id, JobStatus.RUNNING, task_id=task_id, started_at=now)
 
         thread_id = f"cron-{job_id}"  # isolated LangGraph context per job
         try:
@@ -110,22 +108,25 @@ class Orchestrator:
                         "tool": tc["name"],
                         "node": tc["node"],
                         "args_preview": tc["args_preview"],
-                        "started_at": datetime.now(timezone.utc),
+                        "started_at": datetime.now(UTC),
                     }
                 for tr in _extract_tool_results(chunk):
                     buffered = pending.pop(tr["tool_call_id"], None)
                     if buffered:
                         duration_ms = int(
-                            (datetime.now(timezone.utc) - buffered["started_at"]).total_seconds() * 1000
+                            (datetime.now(UTC) - buffered["started_at"]).total_seconds() * 1000
                         )
-                        task_store.append_step(task_id, TaskStep(
-                            tool=buffered["tool"],
-                            node=buffered["node"],
-                            args_preview=buffered["args_preview"],
-                            output_preview=tr["output_preview"],
-                            started_at=buffered["started_at"],
-                            duration_ms=duration_ms,
-                        ))
+                        task_store.append_step(
+                            task_id,
+                            TaskStep(
+                                tool=buffered["tool"],
+                                node=buffered["node"],
+                                args_preview=buffered["args_preview"],
+                                output_preview=tr["output_preview"],
+                                started_at=buffered["started_at"],
+                                duration_ms=duration_ms,
+                            ),
+                        )
 
             reply = _extract_final_reply(self._agent, thread_id)
             self._bot.send_message(
@@ -139,7 +140,7 @@ class Orchestrator:
                 execution_id,
                 JobStatus.DONE,
                 result=reply[:500],
-                completed_at=datetime.now(timezone.utc),
+                completed_at=datetime.now(UTC),
             )
             logger.info("Autonomous job '%s' (%s) completed.", job_name, job_id)
         except InterruptedError:
@@ -148,7 +149,7 @@ class Orchestrator:
                 execution_id,
                 JobStatus.FAILED,
                 error=_CANCELLED_MSG,
-                completed_at=datetime.now(timezone.utc),
+                completed_at=datetime.now(UTC),
             )
         except Exception as exc:
             logger.error(
@@ -169,7 +170,7 @@ class Orchestrator:
                 execution_id,
                 JobStatus.FAILED,
                 error=str(exc)[:500],
-                completed_at=datetime.now(timezone.utc),
+                completed_at=datetime.now(UTC),
             )
 
     def _stream_with_progress(
@@ -212,23 +213,26 @@ class Orchestrator:
                     "tool": tc["name"],
                     "node": tc["node"],
                     "args_preview": tc["args_preview"],
-                    "started_at": datetime.now(timezone.utc),
+                    "started_at": datetime.now(UTC),
                 }
 
             for tr in tool_results:
                 buffered = pending.pop(tr["tool_call_id"], None)
                 if buffered:
                     duration_ms = int(
-                        (datetime.now(timezone.utc) - buffered["started_at"]).total_seconds() * 1000
+                        (datetime.now(UTC) - buffered["started_at"]).total_seconds() * 1000
                     )
-                    task_store.append_step(task_id, TaskStep(
-                        tool=buffered["tool"],
-                        node=buffered["node"],
-                        args_preview=buffered["args_preview"],
-                        output_preview=tr["output_preview"],
-                        started_at=buffered["started_at"],
-                        duration_ms=duration_ms,
-                    ))
+                    task_store.append_step(
+                        task_id,
+                        TaskStep(
+                            tool=buffered["tool"],
+                            node=buffered["node"],
+                            args_preview=buffered["args_preview"],
+                            output_preview=tr["output_preview"],
+                            started_at=buffered["started_at"],
+                            duration_ms=duration_ms,
+                        ),
+                    )
 
             label = _telegram_label(tool_calls, tool_results)
             if label:
@@ -282,10 +286,16 @@ def _extract_tool_results(chunk: dict) -> list[dict]:
     """Return one entry per tool result in this chunk: {tool_call_id, output_preview}."""
     results = []
     for _node, msg in _iter_messages(chunk):
-        msg_type = getattr(msg, "type", None) or (msg.get("type") if isinstance(msg, dict) else None)
+        msg_type = getattr(msg, "type", None) or (
+            msg.get("type") if isinstance(msg, dict) else None
+        )
         if msg_type == "tool":
-            call_id = getattr(msg, "tool_call_id", None) or (msg.get("tool_call_id") if isinstance(msg, dict) else None)
-            content = getattr(msg, "content", None) or (msg.get("content") if isinstance(msg, dict) else None)
+            call_id = getattr(msg, "tool_call_id", None) or (
+                msg.get("tool_call_id") if isinstance(msg, dict) else None
+            )
+            content = getattr(msg, "content", None) or (
+                msg.get("content") if isinstance(msg, dict) else None
+            )
             results.append({
                 "tool_call_id": call_id or "",
                 "output_preview": str(content)[:400] if content else None,

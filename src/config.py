@@ -29,9 +29,7 @@ MONGO_DB: str = os.getenv("MONGO_DB", "bluteksbot")
 MONGO_COLLECTION_EVENTS: str = os.getenv("MONGO_COLLECTION_EVENTS", "events")
 MONGO_COLLECTION_MEMORY: str = os.getenv("MONGO_COLLECTION_MEMORY", "memory")
 MONGO_COLLECTION_DLQ: str = os.getenv("MONGO_COLLECTION_DLQ", "dlq")
-MONGO_COLLECTION_IDEMPOTENCY: str = os.getenv(
-    "MONGO_COLLECTION_IDEMPOTENCY", "processed"
-)
+MONGO_COLLECTION_IDEMPOTENCY: str = os.getenv("MONGO_COLLECTION_IDEMPOTENCY", "processed")
 MONGO_COLLECTION_CONV_HISTORY: str = os.getenv(
     "MONGO_COLLECTION_CONV_HISTORY", "conversation_history"
 )
@@ -41,9 +39,7 @@ OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "http://localhost:4000/v1")
 OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "sk-dummy")
 ORCHESTRATOR_MODEL: str = os.getenv("ORCHESTRATOR_MODEL", "claude-sonnet-4-5")
 WORKER_MODEL: str = os.getenv("WORKER_MODEL", "minimax-m2")
-LITELLM_EMBEDDING_MODEL: str = os.getenv(
-    "LITELLM_EMBEDDING_MODEL", "text-embedding-3-small"
-)
+EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 MODEL_MAX_TOKENS: int = int(os.getenv("MODEL_MAX_TOKENS", "4096"))
 MODEL_TEMPERATURE: float = float(os.getenv("MODEL_TEMPERATURE", "0.2"))
 
@@ -64,9 +60,7 @@ EMAIL_FROM: str = os.getenv("EMAIL_FROM", "")
 CALENDAR_TIMEZONE: str = os.getenv("CALENDAR_TIMEZONE", "UTC")
 
 CODE_EXECUTOR_TIMEOUT: int = int(os.getenv("CODE_EXECUTOR_TIMEOUT", "60"))
-CODE_EXECUTOR_MAX_OUTPUT_CHARS: int = int(
-    os.getenv("CODE_EXECUTOR_MAX_OUTPUT_CHARS", "5000")
-)
+CODE_EXECUTOR_MAX_OUTPUT_CHARS: int = int(os.getenv("CODE_EXECUTOR_MAX_OUTPUT_CHARS", "5000"))
 
 # ── Concurrency ───────────────────────────────────────────────────────────────
 MAX_CONCURRENT_TASKS: int = int(os.getenv("MAX_CONCURRENT_TASKS", "3"))
@@ -79,12 +73,8 @@ MONGO_COLLECTION_SCHEDULED_JOBS: str = os.getenv(
 MONGO_COLLECTION_JOB_EXECUTIONS: str = os.getenv(
     "MONGO_COLLECTION_JOB_EXECUTIONS", "job_executions"
 )
-MONGO_COLLECTION_APSCHEDULER: str = os.getenv(
-    "MONGO_COLLECTION_APSCHEDULER", "apscheduler_jobs"
-)
-SCHEDULER_CONFIG_FILE: str = os.getenv(
-    "SCHEDULER_CONFIG_FILE", "config/scheduled_jobs.yaml"
-)
+MONGO_COLLECTION_APSCHEDULER: str = os.getenv("MONGO_COLLECTION_APSCHEDULER", "apscheduler_jobs")
+SCHEDULER_CONFIG_FILE: str = os.getenv("SCHEDULER_CONFIG_FILE", "config/scheduled_jobs.yaml")
 SCHEDULER_TIMEZONE: str = os.getenv("SCHEDULER_TIMEZONE", CALENDAR_TIMEZONE)
 
 # ── Exponential Backoff ───────────────────────────────────────────────────────
@@ -93,9 +83,7 @@ BACKOFF_MAX_SECONDS: float = float(os.getenv("BACKOFF_MAX_SECONDS", "60.0"))
 BACKOFF_MULTIPLIER: float = float(os.getenv("BACKOFF_MULTIPLIER", "2.0"))
 
 # ── Chat preferences ──────────────────────────────────────────────────────────
-MONGO_COLLECTION_PREFERENCES: str = os.getenv(
-    "MONGO_COLLECTION_PREFERENCES", "chat_preferences"
-)
+MONGO_COLLECTION_PREFERENCES: str = os.getenv("MONGO_COLLECTION_PREFERENCES", "chat_preferences")
 AVAILABLE_MODELS: list[str] = [
     m.strip()
     for m in os.getenv(
@@ -114,9 +102,7 @@ LANGMEM_NAMESPACE: str = os.getenv("LANGMEM_NAMESPACE", f"{APP_NAME},memories")
 # Summarization fires at ~85 % of this value; the last ~10 % of tokens are kept.
 # Set to 0 to disable summarization entirely.
 # only summariz chat history, not the context of the current message
-SUMMARIZATION_TRIGGER_TOKENS: int = int(
-    os.getenv("SUMMARIZATION_TRIGGER_TOKENS", "100000")
-)
+SUMMARIZATION_TRIGGER_TOKENS: int = int(os.getenv("SUMMARIZATION_TRIGGER_TOKENS", "100000"))
 
 # ── Telegram Media ────────────────────────────────────────────────────────────
 WHISPER_MODEL: str = os.getenv("WHISPER_MODEL", "whisper-1")

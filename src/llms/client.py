@@ -34,9 +34,7 @@ def chat(
     response: ChatCompletion = _client().chat.completions.create(
         model=model or config.ORCHESTRATOR_MODEL,
         messages=messages,  # type: ignore[arg-type]
-        temperature=(
-            temperature if temperature is not None else config.MODEL_TEMPERATURE
-        ),
+        temperature=(temperature if temperature is not None else config.MODEL_TEMPERATURE),
         max_tokens=max_tokens or config.MODEL_MAX_TOKENS,
     )
     content: str = response.choices[0].message.content or ""
@@ -47,7 +45,7 @@ def chat(
 def embed(text: str) -> list[float]:
     """Returns an embedding vector for a single text input."""
     response = _client().embeddings.create(
-        model=config.LITELLM_EMBEDDING_MODEL,
+        model=config.EMBEDDING_MODEL,
         input=text,
     )
     return response.data[0].embedding

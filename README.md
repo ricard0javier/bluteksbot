@@ -97,7 +97,7 @@ make dev
 | `WORKER_MODEL`                   | `minimax/minimax-m2`     | Model used by the Deep Agent for all tasks                                      |
 | `MODEL_MAX_TOKENS`               | `4096`                   | Max tokens per LLM call                                                         |
 | `MODEL_TEMPERATURE`              | `0.2`                    | Sampling temperature                                                            |
-| `LITELLM_EMBEDDING_MODEL`        | `text-embedding-3-small` | Embedding model for long-term memory search                                     |
+| `EMBEDDING_MODEL`        | `text-embedding-3-small` | Embedding model for long-term memory search                                     |
 | `EMBEDDING_DIMENSION`            | `1536`                   | Vector dimensions (must match model)                                            |
 | `MEMORY_TOP_K`                   | `5`                      | Top-k results for semantic memory recall                                        |
 | `LANGMEM_NAMESPACE`              | `bluteksbot,memories`    | Comma-separated namespace for LangMem long-term store                           |

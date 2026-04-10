@@ -1,33 +1,40 @@
 """Deep Agent factory — builds the LangGraph Deep Agent with MongoDB persistence and LangMem."""
 
 import logging
-import os
 from functools import lru_cache
 
+from deepagents import create_deep_agent
+from deepagents.backends import CompositeBackend, FilesystemBackend
+from langchain.chat_models import init_chat_model
+from langchain_openai import OpenAIEmbeddings
+from langgraph.checkpoint.mongodb import MongoDBSaver
+from langgraph.store.mongodb import MongoDBStore, create_vector_index_config
+from langmem import create_manage_memory_tool, create_search_memory_tool
+
 from src import config
+from src.agent.LoggingMiddleware import LoggingMiddleware
+from src.llms.prompts import ORCHESTRATOR_SYSTEM
+from src.persistence.client import get_client, get_db
+from src.persistence.mongodb_backend import MongoDBBackend
+from src.tools.agent_tools import AGENT_TOOLS
+from src.tools.schedule_tool import SCHEDULE_TOOLS
+from src.tools.telegram_tools import TELEGRAM_TOOLS
 
 logger = logging.getLogger(__name__)
 
 
-def _configure_langsmith() -> None:
-    """Set LangSmith env vars from config so the SDK picks them up automatically."""
-    if config.LANGSMITH_TRACING.lower() == "true" and config.LANGSMITH_API_KEY:
-        os.environ.setdefault("LANGSMITH_TRACING", "true")
-        os.environ.setdefault("LANGSMITH_API_KEY", config.LANGSMITH_API_KEY)
-        os.environ.setdefault("LANGSMITH_PROJECT", config.LANGSMITH_PROJECT)
-        logger.info("LangSmith tracing enabled (project=%s).", config.LANGSMITH_PROJECT)
-
-
-@lru_cache(maxsize=None)
+@lru_cache(typed=True)
 def build_agent(
-    model_name: str = "",
+    model_name: str = config.WORKER_MODEL,
     include_telegram_tools: bool = True,
     include_schedule_tools: bool = True,
 ):
     """Build and cache a compiled Deep Agent graph per model.
 
     Args:
-        model_name: LiteLLM model identifier. Defaults to ``config.WORKER_MODEL``.
+        model_name: the model to use for the agent
+        include_telegram_tools: whether to include the telegram tools
+        include_schedule_tools: whether to include the schedule tools
 
     Returns a CompiledStateGraph that accepts:
         agent.invoke(
@@ -35,24 +42,6 @@ def build_agent(
             config={"configurable": {"thread_id": "<chat_id>"}},
         )
     """
-    model_name = model_name or config.WORKER_MODEL
-    _configure_langsmith()
-
-    from deepagents import create_deep_agent
-    from deepagents.backends import CompositeBackend, FilesystemBackend
-    from langchain.chat_models import init_chat_model
-    from langchain_openai import OpenAIEmbeddings
-    from langgraph.checkpoint.mongodb import MongoDBSaver
-    from langgraph.store.mongodb import MongoDBStore, create_vector_index_config
-    from langmem import create_manage_memory_tool, create_search_memory_tool
-
-    from src.llms.prompts import ORCHESTRATOR_SYSTEM
-    from src.persistence.client import get_client, get_db
-    from src.persistence.mongodb_backend import MongoDBBackend
-    from src.tools.agent_tools import AGENT_TOOLS
-    from src.tools.schedule_tool import SCHEDULE_TOOLS
-    from src.tools.telegram_tools import TELEGRAM_TOOLS
-    from src.agent.LoggingMiddleware import LoggingMiddleware
 
     checkpointer = MongoDBSaver(
         client=get_client(),
@@ -60,7 +49,7 @@ def build_agent(
     )
 
     embeddings = OpenAIEmbeddings(
-        model=config.LITELLM_EMBEDDING_MODEL,
+        model=config.EMBEDDING_MODEL,
         base_url=config.OPENAI_BASE_URL,
         api_key=config.OPENAI_API_BEARER_TOKEN,
     )
@@ -141,4 +130,5 @@ def build_agent(
     )
 
     logger.info("Deep Agent built (model=%s).", model_name)
+
     return agent

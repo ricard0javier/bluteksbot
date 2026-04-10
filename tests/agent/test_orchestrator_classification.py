@@ -1,34 +1,35 @@
-"""Unit tests for orchestrator classification routing."""
+"""Unit tests for telegram producer classification routing."""
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from src.agent.orchestrator import Orchestrator
+from src.telegram.producer import TelegramProducer
 
 
 @pytest.fixture
-def orchestrator():
+def telegram_producer():
     bot = MagicMock()
-    return Orchestrator(bot=bot)
+    agent = MagicMock()
+    return TelegramProducer(bot=bot, agent=agent)
 
 
-def test_classify_returns_valid_decision(orchestrator, mocker):
+def test_classify_returns_valid_decision(telegram_producer, mocker):
     mocker.patch(
-        "src.agent.orchestrator.llm.chat",
+        "src.telegram.producer.llm.chat",
         return_value=json.dumps({"agent": "search_agent", "task": "latest AI news"}),
     )
-    mocker.patch("src.agent.orchestrator.embed", return_value=[0.1] * 1536)
-    mocker.patch("src.agent.orchestrator.search_memory", return_value=[])
+    mocker.patch("src.telegram.producer.embed", return_value=[0.1] * 1536)
+    mocker.patch("src.telegram.producer.search_memory", return_value=[])
 
-    decision = orchestrator._classify("latest AI news", "")
+    decision = telegram_producer._classify("latest AI news", "")
     assert decision.agent == "search_agent"
     assert "AI" in decision.task
 
 
-def test_classify_fallback_on_bad_json(orchestrator, mocker):
-    mocker.patch("src.agent.orchestrator.llm.chat", return_value="not json")
+def test_classify_fallback_on_bad_json(telegram_producer, mocker):
+    mocker.patch("src.telegram.producer.llm.chat", return_value="not json")
 
-    decision = orchestrator._classify("hello", "")
+    decision = telegram_producer._classify("hello", "")
     assert decision.agent == "chat_agent"

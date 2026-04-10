@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 import telebot
 
@@ -32,19 +32,23 @@ class CommandRegistry:
 
         # In message pipeline:
         if registry.dispatch(message, bot):
-            return  # handled, skip orchestrator
+            return  # handled, skip telegram producer
     """
 
     def __init__(self) -> None:
         self._commands: dict[str, CommandInfo] = {}
 
-    def register(self, command: str, description: str) -> Callable[[CommandHandler], CommandHandler]:
+    def register(
+        self, command: str, description: str
+    ) -> Callable[[CommandHandler], CommandHandler]:
         """Decorator factory — registers a command handler."""
+
         def decorator(fn: CommandHandler) -> CommandHandler:
             key = command.lstrip("/").lower()
             self._commands[key] = CommandInfo(command=command, description=description, handler=fn)
             logger.debug("Registered command: %s", command)
             return fn
+
         return decorator
 
     def dispatch(self, message: telebot.types.Message, bot: telebot.TeleBot) -> bool:
