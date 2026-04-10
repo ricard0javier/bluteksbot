@@ -86,8 +86,8 @@ def _transcribe_audio(audio_bytes: bytes, filename: str = "voice.ogg") -> str | 
         from openai import OpenAI
 
         client = OpenAI(
-            base_url=config.LITELLM_BASE_URL,
-            api_key=config.LITELLM_API_KEY,
+            base_url=config.OPENAI_BASE_URL,
+            api_key=config.OPENAI_API_BEARER_TOKEN,
         )
         audio_file = io.BytesIO(audio_bytes)
         audio_file.name = filename

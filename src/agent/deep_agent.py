@@ -27,7 +27,7 @@ def build_agent(
     """Build and cache a compiled Deep Agent graph per model.
 
     Args:
-        model_name: LiteLLM model identifier. Defaults to ``config.LITELLM_WORKER_MODEL``.
+        model_name: LiteLLM model identifier. Defaults to ``config.WORKER_MODEL``.
 
     Returns a CompiledStateGraph that accepts:
         agent.invoke(
@@ -35,7 +35,7 @@ def build_agent(
             config={"configurable": {"thread_id": "<chat_id>"}},
         )
     """
-    model_name = model_name or config.LITELLM_WORKER_MODEL
+    model_name = model_name or config.WORKER_MODEL
     _configure_langsmith()
 
     from deepagents import create_deep_agent
@@ -61,8 +61,8 @@ def build_agent(
 
     embeddings = OpenAIEmbeddings(
         model=config.LITELLM_EMBEDDING_MODEL,
-        base_url=config.LITELLM_BASE_URL,
-        api_key=config.LITELLM_API_KEY,
+        base_url=config.OPENAI_BASE_URL,
+        api_key=config.OPENAI_API_BEARER_TOKEN,
     )
 
     index_config = create_vector_index_config(
@@ -88,10 +88,10 @@ def build_agent(
     model = init_chat_model(
         model=model_name,
         model_provider="openai",
-        base_url=config.LITELLM_BASE_URL,
-        api_key=config.LITELLM_API_KEY,
-        temperature=config.LITELLM_TEMPERATURE,
-        max_tokens=config.LITELLM_MAX_TOKENS,
+        base_url=config.OPENAI_BASE_URL,
+        api_key=config.OPENAI_API_BEARER_TOKEN,
+        temperature=config.MODEL_TEMPERATURE,
+        max_tokens=config.MODEL_MAX_TOKENS,
         profile=summarization_profile,
     )
 

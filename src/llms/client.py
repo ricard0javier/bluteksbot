@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 def _client() -> OpenAI:
     """Singleton OpenAI client pointed at the self-hosted LiteLLM proxy."""
     return OpenAI(
-        api_key=config.LITELLM_API_KEY,
-        base_url=config.LITELLM_BASE_URL,
+        api_key=config.OPENAI_API_BEARER_TOKEN,
+        base_url=config.OPENAI_BASE_URL,
     )
 
 
@@ -32,12 +32,12 @@ def chat(
 ) -> str:
     """Returns the assistant message content as a string."""
     response: ChatCompletion = _client().chat.completions.create(
-        model=model or config.LITELLM_ORCHESTRATOR_MODEL,
+        model=model or config.ORCHESTRATOR_MODEL,
         messages=messages,  # type: ignore[arg-type]
         temperature=(
-            temperature if temperature is not None else config.LITELLM_TEMPERATURE
+            temperature if temperature is not None else config.MODEL_TEMPERATURE
         ),
-        max_tokens=max_tokens or config.LITELLM_MAX_TOKENS,
+        max_tokens=max_tokens or config.MODEL_MAX_TOKENS,
     )
     content: str = response.choices[0].message.content or ""
     logger.debug("LLM response (%d chars).", len(content))

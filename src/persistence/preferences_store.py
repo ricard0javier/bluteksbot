@@ -10,7 +10,7 @@ def _col():
 
 def get_model(chat_id: int) -> str:
     doc = _col().find_one({"_id": chat_id}, {"model": 1})
-    return doc["model"] if doc and "model" in doc else config.LITELLM_WORKER_MODEL
+    return doc["model"] if doc and "model" in doc else config.WORKER_MODEL
 
 
 def set_model(chat_id: int, model: str) -> None:

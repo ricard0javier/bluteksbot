@@ -30,7 +30,7 @@ class ChatMessage(BaseModel):
 
 
 class ChatCompletionsRequest(BaseModel):
-    model: str = Field(default_factory=lambda: config.LITELLM_WORKER_MODEL)
+    model: str = Field(default_factory=lambda: config.WORKER_MODEL)
     messages: list[ChatMessage]
     stream: bool = False
     user: str | None = None
@@ -133,7 +133,9 @@ def _validate_chat_request(req: ChatCompletionsRequest) -> None:
         )
 
 
-def _run_completion(req: ChatCompletionsRequest, conversation_id: str) -> tuple[str, str]:
+def _run_completion(
+    req: ChatCompletionsRequest, conversation_id: str
+) -> tuple[str, str]:
     prompt = _last_user_message(req.messages)
     input_messages = _to_agent_messages(req.messages)
     api_agent = build_agent(
@@ -210,7 +212,9 @@ def _stream_chat_completion_sse(
             "created": created,
             "model": model,
             "conversation_id": conversation_id,
-            "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}],
+            "choices": [
+                {"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}
+            ],
         }
     )
     for piece in _chunk_text(completion):
@@ -221,7 +225,9 @@ def _stream_chat_completion_sse(
                 "created": created,
                 "model": model,
                 "conversation_id": conversation_id,
-                "choices": [{"index": 0, "delta": {"content": piece}, "finish_reason": None}],
+                "choices": [
+                    {"index": 0, "delta": {"content": piece}, "finish_reason": None}
+                ],
             }
         )
     yield _sse_line(
@@ -250,7 +256,9 @@ def _serialize(doc: dict) -> dict:
         elif isinstance(v, list):
             out[key] = [_serialize(i) if isinstance(i, dict) else i for i in v]
         else:
-            out[key] = str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v
+            out[key] = (
+                str(v) if not isinstance(v, (str, int, float, bool, type(None))) else v
+            )
     return out
 
 
@@ -307,7 +315,9 @@ def chat_completions(req: ChatCompletionsRequest, request: Request) -> Any:
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Agent invocation failed: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Agent invocation failed: {exc}"
+        ) from exc
 
     if req.stream:
         return StreamingResponse(
@@ -343,7 +353,9 @@ def get_status() -> dict:
 
     tasks = [
         _serialize(doc)
-        for doc in db[config.MONGO_COLLECTION_TASKS].find({}, sort=[("created_at", -1)], limit=30)
+        for doc in db[config.MONGO_COLLECTION_TASKS].find(
+            {}, sort=[("created_at", -1)], limit=30
+        )
     ]
 
     executions = [
@@ -353,7 +365,9 @@ def get_status() -> dict:
         )
     ]
 
-    jobs = [_serialize(doc) for doc in db[config.MONGO_COLLECTION_SCHEDULED_JOBS].find({})]
+    jobs = [
+        _serialize(doc) for doc in db[config.MONGO_COLLECTION_SCHEDULED_JOBS].find({})
+    ]
 
     active_tasks = sum(1 for t in tasks if t.get("status") in ("pending", "running"))
 
@@ -374,7 +388,9 @@ def cancel_task(task_id: str) -> dict:
         raise HTTPException(status_code=404, detail="Task not found")
     if status not in (TaskStatus.PENDING, TaskStatus.RUNNING):
         raise HTTPException(status_code=409, detail=f"Task is already {status.value}")
-    task_store.update_status(task_id, TaskStatus.CANCELLED, error="Cancelled via dashboard")
+    task_store.update_status(
+        task_id, TaskStatus.CANCELLED, error="Cancelled via dashboard"
+    )
     return {"ok": True, "task_id": task_id}
 
 
