@@ -1,7 +1,8 @@
 """Pydantic models for the event envelope, aggregate contracts, and task tracking."""
-from datetime import datetime, timezone
+
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -18,10 +19,10 @@ class TaskStatus(str, Enum):
 class TaskStep(BaseModel):
     tool: str
     node: str = ""
-    args_preview: Optional[str] = None
-    output_preview: Optional[str] = None
-    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    duration_ms: Optional[int] = None
+    args_preview: str | None = None
+    output_preview: str | None = None
+    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    duration_ms: int | None = None
 
 
 class BotTask(BaseModel):
@@ -33,10 +34,10 @@ class BotTask(BaseModel):
     input: str
     progress: list[str] = []
     steps: list[TaskStep] = []
-    result: Optional[str] = None
-    error: Optional[str] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    result: str | None = None
+    error: str | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     model_config = {"populate_by_name": True}
 
@@ -56,10 +57,10 @@ class ScheduledJob(BaseModel):
     chat_id: int
     enabled: bool = True
     created_by: str  # "config" or "user:{chat_id}"
-    last_run_at: Optional[datetime] = None
-    next_run_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_run_at: datetime | None = None
+    next_run_at: datetime | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     model_config = {"populate_by_name": True}
 
@@ -71,13 +72,13 @@ class JobExecution(BaseModel):
     chat_id: int
     scheduled_fire_time: datetime
     claimed_by: str  # "hostname:pid" — the atomic lock field
-    claimed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    claimed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     status: JobStatus = JobStatus.CLAIMED
-    task_id: Optional[str] = None
-    result: Optional[str] = None
-    error: Optional[str] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    task_id: str | None = None
+    result: str | None = None
+    error: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
     model_config = {"populate_by_name": True}
 
@@ -86,7 +87,7 @@ class EventMetadata(BaseModel):
     traceId: str = Field(default_factory=lambda: str(uuid4()))
     correlationId: str = Field(default_factory=lambda: str(uuid4()))
     causationId: str = Field(default_factory=lambda: str(uuid4()))
-    occurredAt: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    occurredAt: datetime = Field(default_factory=lambda: datetime.now(UTC))
     source: str = "bluteksbot"
     schema_version: str = "1.0"
 
@@ -94,7 +95,7 @@ class EventMetadata(BaseModel):
 class EventAggregate(BaseModel):
     type: str
     id: str
-    subType: Optional[str] = None
+    subType: str | None = None
     sequenceNr: int = 0
 
 

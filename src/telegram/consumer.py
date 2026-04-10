@@ -16,6 +16,7 @@ from src.persistence.dlq import send_to_dlq
 from src.persistence.idempotency import is_already_processed
 from src.persistence.models import BotTask
 from src.persistence.task_store import create as create_task
+from src.telegram.commands import registry
 from src.telegram.producer import TelegramProducer
 from src.telegram.state import set_bot
 
@@ -292,7 +293,6 @@ class TelegramConsumer:
         return user_id in config.TELEGRAM_ALLOWED_USER_IDS
 
     def _process(self, message: telebot.types.Message) -> None:
-        from src.telegram.commands import registry
 
         user_id = message.from_user.id if message.from_user else 0
         causation_id = f"tg-{message.chat.id}-{message.message_id}"
@@ -301,9 +301,8 @@ class TelegramConsumer:
             logger.warning("Unauthorised user_id=%s — ignoring.", user_id)
             return
 
-        if message.text and message.text.startswith("/"):
-            if registry.dispatch(message, self._bot):
-                return
+        if message.text and message.text.startswith("/") and registry.dispatch(message, self._bot):
+            return
 
         if is_already_processed(causation_id):
             return

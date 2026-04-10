@@ -1,5 +1,6 @@
 """Telegram producer — routes Telegram messages through the Deep Agent with streaming progress."""
 
+import contextlib
 import logging
 from datetime import UTC, datetime
 from typing import Any
@@ -52,10 +53,8 @@ class TelegramProducer:
             self._store_event(raw, reply)
         except InterruptedError:
             logger.info("Task %s cancelled (chat=%s).", task_id, chat_id)
-            try:
+            with contextlib.suppress(Exception):
                 self._bot.send_message(chat_id, "Task was cancelled.")
-            except Exception:
-                pass
         except Exception as exc:
             logger.error("Task %s failed (chat=%s).", task_id, chat_id, exc_info=True)
             task_store.update_status(task_id, TaskStatus.FAILED, error=str(exc))
@@ -64,10 +63,8 @@ class TelegramProducer:
             except Exception:
                 logger.warning("Failed to send error message to chat=%s.", chat_id)
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 self._bot.delete_message(chat_id, status_msg_id)
-            except Exception:
-                pass
 
     def run_autonomous(
         self,
@@ -87,9 +84,9 @@ class TelegramProducer:
             causation_id=f"cron-{job_id}-{now.isoformat()}",
             chat_id=chat_id,
             input=task_prompt,
+            status=TaskStatus.RUNNING,
         )
         task_id = task_store.create(task)
-        task_store.update_status(task_id, TaskStatus.RUNNING)
         job_store.update_execution(execution_id, JobStatus.RUNNING, task_id=task_id, started_at=now)
 
         thread_id = f"cron-{job_id}"  # isolated LangGraph context per job
