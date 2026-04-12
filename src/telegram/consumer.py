@@ -329,11 +329,14 @@ class TelegramConsumer:
 
         try:
             task_id = create_task(task)
-            status_msg = self._bot.send_message(message.chat.id, "\u23f3 Working on it\u2026")
-            status_msg_id = status_msg.message_id
 
             self._executor.submit(
-                _run_task_safe, self._telegram_producer, task_id, status_msg_id, raw
+                _responde_safe,
+                self._telegram_producer,
+                task_id,
+                message.chat.id,
+                raw,
+                "\u23f3 Working on it\u2026",
             )
         except Exception as exc:
             logger.error("Failed to dispatch task (chat=%s).", message.chat.id, exc_info=True)
@@ -362,11 +365,17 @@ class TelegramConsumer:
         self._executor.shutdown(wait=False, cancel_futures=True)
 
 
-def _run_task_safe(
-    telegram_producer: TelegramProducer, task_id: str, status_msg_id: int, raw: dict
+def _responde_safe(
+    telegram_producer: TelegramProducer,
+    task_id: str,
+    chat_id: int,
+    raw: dict,
+    status_message_text: str,
 ) -> None:
     """Top-level wrapper so ThreadPoolExecutor exceptions are logged (not silently swallowed)."""
     try:
-        telegram_producer.run_task(task_id=task_id, status_msg_id=status_msg_id, raw=raw)
+        telegram_producer.respond(
+            task_id=task_id, chat_id=chat_id, raw=raw, status_message_text=status_message_text
+        )
     except Exception:
         logger.error("Unhandled error in background task %s.", task_id, exc_info=True)

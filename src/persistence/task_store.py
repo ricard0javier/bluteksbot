@@ -17,7 +17,12 @@ def _col():
 def create(task: BotTask) -> str:
     doc = task.model_dump(by_alias=True)
     _col().insert_one(doc)
-    logger.debug("Task created: %s (chat=%s).", task.id, task.chat_id, task.status.value)
+    logger.debug(
+        "Task created: %s (chat=%s, status=%s).",
+        task.id,
+        task.chat_id,
+        task.status.value,
+    )
     return task.id
 
 

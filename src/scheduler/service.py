@@ -11,9 +11,9 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from src import config
-from src.persistence import job_store
+from src.persistence import job_store, task_store
 from src.persistence.client import get_client
-from src.persistence.models import ScheduledJob
+from src.persistence.models import BotTask, JobStatus, ScheduledJob, TaskStatus
 from src.scheduler.config_loader import load_from_file
 from src.telegram.producer import TelegramProducer
 
@@ -150,23 +150,84 @@ class SchedulerService:
             return
 
         fire_time = datetime.now(UTC)
+        chat_id = job.chat_id
+        job_id = job.id
+        job_name = job.name
+        job_prompt = job.task_prompt
         execution = job_store.try_claim(
-            job_id=job.id,
-            job_name=job.name,
-            chat_id=job.chat_id,
+            job_id=job_id,
+            job_name=job_name,
+            chat_id=chat_id,
             fire_time=fire_time,
             instance_id=INSTANCE_ID,
         )
         if execution is None:
             return  # another instance already claimed this firing
 
-        self._telegram_producer.run_autonomous(
-            task_prompt=job.task_prompt,
-            chat_id=job.chat_id,
-            job_id=job.id,
-            job_name=job.name,
-            execution_id=execution.id,
-        )
+        try:
+            now = datetime.now(UTC)
+            task = BotTask(
+                causation_id=f"cron-{job_id}-{now.isoformat()}",
+                chat_id=chat_id,
+                input=job_prompt,
+                status=TaskStatus.RUNNING,
+            )
+            task_id = task_store.create(task)
+            job_store.update_execution(
+                execution.id, JobStatus.RUNNING, task_id=task_id, started_at=now
+            )
+
+            self._telegram_producer.send_message(
+                chat_id,
+                f"\u23f3 *Scheduled job '{job_name}' started*",
+            )
+
+            thread_id = f"cron-{job_id}"  # isolated LangGraph context per job
+
+            status_message_text = f"\u23f3 Working on scheduled task '{job_name}' \u2026"
+            reply = self._telegram_producer.respond(
+                task_id=execution.task_id,
+                chat_id=job.chat_id,
+                raw={
+                    "text": job_prompt,
+                },
+                thread_id=thread_id,
+                status_message_text=status_message_text,
+            )
+
+            job_store.update_execution(
+                execution.id,
+                JobStatus.DONE,
+                result=reply[:500],
+                completed_at=datetime.now(UTC),
+            )
+            logger.info("Scheduled job '%s' (%s) completed.", job_name, job_id)
+        except InterruptedError:
+            logger.info("Scheduled job '%s' (%s) cancelled.", job_name, job_id)
+            job_store.update_execution(
+                execution.id,
+                JobStatus.FAILED,
+                error="Task was cancelled.",
+                completed_at=datetime.now(UTC),
+            )
+        except Exception as exc:
+            logger.error("Scheduled job '%s' (%s) failed: %s", job_name, job_id, exc, exc_info=True)
+            err_preview = str(exc)[:300]
+            try:
+                self._telegram_producer.send_message(
+                    chat_id,
+                    f"\u26a0\ufe0f *Scheduled job '{job_name}' failed*",
+                )
+                self._telegram_producer.send_message(chat_id, err_preview)
+            except Exception:
+                logger.warning("Could not send error notification to chat=%s.", chat_id)
+            task_store.update_status(task_id, TaskStatus.FAILED, error=str(exc))
+            job_store.update_execution(
+                execution.id,
+                JobStatus.FAILED,
+                error=str(exc)[:500],
+                completed_at=datetime.now(UTC),
+            )
         job_store.update_last_run(job.id, fire_time)
 
 
