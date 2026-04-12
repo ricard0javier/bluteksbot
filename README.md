@@ -91,7 +91,7 @@ make dev
 | Variable                         | Default                  | Description                                                                     |
 | -------------------------------- | ------------------------ | ------------------------------------------------------------------------------- |
 | `TELEGRAM_ALLOWED_USER_IDS`      | *(empty = allow all)*    | Comma-separated Telegram user IDs to whitelist                                  |
-| `ORCHESTRATOR_MODEL`             | `claude-sonnet-4-5`      | Model for the orchestrator layer (routing/planning)                             |
+| `ORCHESTRATOR_MODEL`             | `minimax-m2`             | Model for the orchestrator layer (routing/planning)                             |
 | `OPENAI_BASE_URL`                | `http://litellm:4000/v1` | OpenAI Base URL                                                                 |
 | `OPENAI_API_BEARER_TOKEN`        | `sk-dummy`               | OpenAI key to access models served on the OpenAI Base URL                       |
 | `WORKER_MODEL`                   | `minimax/minimax-m2`     | Model used by the Deep Agent for all tasks                                      |

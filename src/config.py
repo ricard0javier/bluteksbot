@@ -37,7 +37,7 @@ MONGO_COLLECTION_CONV_HISTORY: str = os.getenv(
 # ── LiteLLM ───────────────────────────────────────────────────────────────────
 OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "http://localhost:4000/v1")
 OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "sk-dummy")
-ORCHESTRATOR_MODEL: str = os.getenv("ORCHESTRATOR_MODEL", "claude-sonnet-4-5")
+ORCHESTRATOR_MODEL: str = os.getenv("ORCHESTRATOR_MODEL", "minimax-m2")
 WORKER_MODEL: str = os.getenv("WORKER_MODEL", "minimax-m2")
 EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 MODEL_MAX_TOKENS: int = int(os.getenv("MODEL_MAX_TOKENS", "4096"))

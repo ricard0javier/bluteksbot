@@ -201,6 +201,7 @@ class SchedulerService:
                 result=reply[:500],
                 completed_at=datetime.now(UTC),
             )
+            task_store.update_status(task_id, TaskStatus.DONE, result=reply[:500])
             logger.info("Scheduled job '%s' (%s) completed.", job_name, job_id)
         except InterruptedError:
             logger.info("Scheduled job '%s' (%s) cancelled.", job_name, job_id)
