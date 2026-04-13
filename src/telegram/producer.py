@@ -23,13 +23,13 @@ class TelegramProducer:
         self._bot = bot
         self._agent = agent
 
-    def send_message(self, chat_id: int, text: str) -> None:
+    def send_message(self, chat_id: str, text: str) -> None:
         self._bot.send_message(chat_id, text)
 
     def respond(
         self,
         task_id: str,
-        chat_id: int,
+        chat_id: str,
         raw: dict[str, Any],
         status_message_text: str,
         thread_id: str | None = None,
@@ -50,7 +50,7 @@ class TelegramProducer:
             return self._bot.edit_message_text(text, chat_id, status_msg_id)
 
         if thread_id is None:
-            thread_id = str(chat_id)
+            thread_id = chat_id
 
         # Stream the agent updates and send progress updates
         try:
@@ -91,11 +91,11 @@ class TelegramProducer:
             with contextlib.suppress(Exception):
                 self._bot.delete_message(chat_id, status_msg_id)
 
-    def _store_event(self, chat_id: int, reply: str) -> None:
+    def _store_event(self, chat_id: str, reply: str) -> None:
         try:
             event = Event(
                 eventType="message.processed",
-                aggregate=EventAggregate(type="conversation", id=str(chat_id)),
+                aggregate=EventAggregate(type="conversation", id=chat_id),
                 payload={"reply_preview": reply[:200]},
             )
             event_store.append(event)

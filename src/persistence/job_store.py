@@ -1,7 +1,7 @@
 """Job store — MongoDB CRUD for scheduled_jobs and job_executions collections."""
+
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from pymongo.errors import DuplicateKeyError
 
@@ -18,6 +18,7 @@ def _jobs_col():
 
 def _exec_col():
     return get_db()[config.MONGO_COLLECTION_JOB_EXECUTIONS]
+
 
 # ── Scheduled Jobs ────────────────────────────────────────────────────────────
 
@@ -40,12 +41,12 @@ def upsert_job(job: ScheduledJob) -> None:
     logger.debug("Upserted config job '%s' (%s).", job.name, job.id)
 
 
-def get_job(job_id: str) -> Optional[ScheduledJob]:
+def get_job(job_id: str) -> ScheduledJob | None:
     doc = _jobs_col().find_one({"_id": job_id})
     return ScheduledJob(**doc) if doc else None
 
 
-def list_jobs(chat_id: Optional[int] = None, enabled_only: bool = True) -> list[ScheduledJob]:
+def list_jobs(chat_id: str | None = None, enabled_only: bool = True) -> list[ScheduledJob]:
     query: dict = {}
     if enabled_only:
         query["enabled"] = True
@@ -57,7 +58,7 @@ def list_jobs(chat_id: Optional[int] = None, enabled_only: bool = True) -> list[
 def disable_job(job_id: str) -> bool:
     result = _jobs_col().update_one(
         {"_id": job_id},
-        {"$set": {"enabled": False, "updated_at": datetime.now(timezone.utc)}},
+        {"$set": {"enabled": False, "updated_at": datetime.now(UTC)}},
     )
     return result.modified_count > 0
 
@@ -65,15 +66,13 @@ def disable_job(job_id: str) -> bool:
 def enable_job(job_id: str) -> bool:
     result = _jobs_col().update_one(
         {"_id": job_id},
-        {"$set": {"enabled": True, "updated_at": datetime.now(timezone.utc)}},
+        {"$set": {"enabled": True, "updated_at": datetime.now(UTC)}},
     )
     return result.modified_count > 0
 
 
-def update_last_run(
-    job_id: str, run_at: datetime, next_run_at: Optional[datetime] = None
-) -> None:
-    fields: dict = {"last_run_at": run_at, "updated_at": datetime.now(timezone.utc)}
+def update_last_run(job_id: str, run_at: datetime, next_run_at: datetime | None = None) -> None:
+    fields: dict = {"last_run_at": run_at, "updated_at": datetime.now(UTC)}
     if next_run_at is not None:
         fields["next_run_at"] = next_run_at
     _jobs_col().update_one({"_id": job_id}, {"$set": fields})
@@ -85,10 +84,10 @@ def update_last_run(
 def try_claim(
     job_id: str,
     job_name: str,
-    chat_id: int,
+    chat_id: str,
     fire_time: datetime,
     instance_id: str,
-) -> Optional[JobExecution]:
+) -> JobExecution | None:
     """Atomically claim a job execution slot via unique index.
 
     Returns the new JobExecution on success, or None if another instance already
@@ -118,11 +117,11 @@ def try_claim(
 def update_execution(
     execution_id: str,
     status: JobStatus,
-    task_id: Optional[str] = None,
-    result: Optional[str] = None,
-    error: Optional[str] = None,
-    started_at: Optional[datetime] = None,
-    completed_at: Optional[datetime] = None,
+    task_id: str | None = None,
+    result: str | None = None,
+    error: str | None = None,
+    started_at: datetime | None = None,
+    completed_at: datetime | None = None,
 ) -> None:
     fields: dict = {"status": status.value}
     if task_id is not None:

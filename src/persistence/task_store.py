@@ -68,7 +68,7 @@ def append_step(task_id: str, step: TaskStep) -> None:
     )
 
 
-def list_running(chat_id: int) -> list[dict]:
+def list_running(chat_id: str) -> list[dict]:
     """Return running/pending tasks for a chat as lightweight dicts: {id, input, status}."""
     docs = (
         _col()

@@ -11,9 +11,9 @@ from src.persistence.models import ScheduledJob
 logger = logging.getLogger(__name__)
 
 
-def _chat_id(config: RunnableConfig) -> int:
+def _chat_id(config: RunnableConfig) -> str:
     """Extract the Telegram chat_id from the LangGraph thread_id injected via configurable."""
-    return int(config["configurable"]["thread_id"])
+    return str(config["configurable"]["thread_id"])
 
 
 @tool
@@ -70,16 +70,12 @@ def list_cron_jobs(config: RunnableConfig) -> str:
     lines = ["*Scheduled jobs:*"]
     for j in jobs:
         state = "enabled" if j.enabled else "disabled"
-        last = (
-            j.last_run_at.strftime("%Y-%m-%d %H:%M UTC") if j.last_run_at else "never"
-        )
-        lines.append(
-            f"• `{j.id[:8]}` *{j.name}* — `{j.cron_expr}` | {state} | last run: {last}"
-        )
+        last = j.last_run_at.strftime("%Y-%m-%d %H:%M UTC") if j.last_run_at else "never"
+        lines.append(f"• `{j.id[:8]}` *{j.name}* — `{j.cron_expr}` | {state} | last run: {last}")
     return "\n".join(lines)
 
 
-def _resolve_job(job_id: str, chat_id: int):
+def _resolve_job(job_id: str, chat_id: str):
     """Return a ScheduledJob by exact or prefix ID, scoped to chat_id. Returns (job, error_str)."""
     job = job_store.get_job(job_id)
     if job is None:
@@ -115,9 +111,7 @@ def cancel_cron_job(job_id: str, config: RunnableConfig) -> str:
     scheduler = get_scheduler()
     ok = scheduler.disable_job(job.id) if scheduler else job_store.disable_job(job.id)
     if not ok:
-        return (
-            f"Job '{job.name}' could not be disabled (already disabled or not found)."
-        )
+        return f"Job '{job.name}' could not be disabled (already disabled or not found)."
 
     logger.info("User disabled job '%s' (%s, chat=%s).", job.name, job.id, chat_id)
     return f"Scheduled job *'{job.name}'* (`{job.id[:8]}`) has been disabled."

@@ -1,7 +1,7 @@
-"""Telegram producer — routes Telegram messages through the Deep Agent with streaming progress."""
+"""Agent execution helpers — graph streaming (Telegram + OpenAI-compatible API)."""
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
 
 from langgraph.graph.state import CompiledStateGraph
@@ -14,25 +14,21 @@ logger = logging.getLogger(__name__)
 _THINKING_EMOJI = "\u23f3"  # ⏳
 
 
-def stream_agent_updates(
+def iter_agent_stream_progress(
     agent: CompiledStateGraph,
-    task_id: str,
     thread_id: str,
-    user_text: str,
-    user_content: str | list | None = None,
-    progress_update_callback: Callable[[str], None] = None,
-) -> str:
-    """Stream agent execution, edit status message on each step, return final reply."""
-    steps: list[str] = []
-    pending: dict[str, dict] = {}  # tool_call_id → buffered step data
-
-    # Collect tool_call IDs already in the checkpoint so we don't re-label
-    # historical tool calls that LangGraph may replay in the first stream chunk.
+    messages: list[dict],
+    task_id: str,
+) -> Iterator[str]:
+    """Yield each tool/progress label as the graph runs (`stream_mode="updates"`)."""
+    pending: dict[str, dict] = {}
     prior_tc_ids: set[str] = _snapshot_tool_call_ids(agent, thread_id)
 
-    content = user_content if user_content is not None else user_text
+    # remove system prompt from messages
+    pruned_messages = [msg for msg in messages if msg["role"] != "system"]
+
     for update in agent.stream(
-        {"messages": [{"role": "user", "content": content}]},
+        {"messages": pruned_messages},
         config={"configurable": {"thread_id": thread_id}},
         stream_mode="updates",
     ):
@@ -43,7 +39,7 @@ def stream_agent_updates(
         tool_results = _extract_tool_results(update)
 
         for tc in tool_calls:
-            prior_tc_ids.add(tc["id"])  # deduplicate within the same stream
+            prior_tc_ids.add(tc["id"])
             pending[tc["id"]] = {
                 "tool": tc["name"],
                 "node": tc["node"],
@@ -71,12 +67,45 @@ def stream_agent_updates(
 
         label = _get_progress_label(tool_calls, tool_results)
         if label:
-            steps.append(label)
-            update_text = "\n".join(steps[-5:])
             task_store.append_progress(task_id, label)
-            progress_update_callback(update_text)
+            yield label
 
-    return _extract_final_reply(agent, thread_id)
+
+def run_agent_stream(
+    agent: CompiledStateGraph,
+    thread_id: str,
+    messages: list[dict],
+    *,
+    task_id: str,
+    progress_update_callback: Callable[[str], None] | None = None,
+) -> str:
+    """Run the agent with `agent.stream`, optional progress callback; return final assistant text."""
+    steps: list[str] = []
+    for label in iter_agent_stream_progress(agent, thread_id, messages, task_id):
+        steps.append(label)
+        if progress_update_callback:
+            progress_update_callback("\n".join(steps[-5:]))
+    return extract_final_reply(agent, thread_id)
+
+
+def stream_agent_updates(
+    agent: CompiledStateGraph,
+    task_id: str,
+    thread_id: str,
+    user_text: str,
+    user_content: str | list | None = None,
+    progress_update_callback: Callable[[str], None] | None = None,
+) -> str:
+    """Stream agent execution, edit status message on each step, return final reply."""
+    content = user_content if user_content is not None else user_text
+    messages = [{"role": "user", "content": content}]
+    return run_agent_stream(
+        agent,
+        thread_id,
+        messages,
+        task_id=task_id,
+        progress_update_callback=progress_update_callback,
+    )
 
 
 def _snapshot_tool_call_ids(agent, thread_id: str) -> set[str]:
@@ -151,7 +180,7 @@ def _extract_tool_results(chunk: dict) -> list[dict]:
     return results
 
 
-def _extract_final_reply(agent, thread_id: str) -> str:
+def extract_final_reply(agent, thread_id: str) -> str:
     """Get the last assistant message from checkpoint state."""
     try:
         state = agent.get_state(config={"configurable": {"thread_id": thread_id}})

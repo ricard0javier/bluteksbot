@@ -24,7 +24,7 @@ jobs:
   - name: daily-health-check
     # run every minute
     cron: "0 */8 * * *"
-    chat_id: 0 # set your numeric Telegram chat ID before enabling (e.g. from @userinfobot)
+    chat_id: "0" # set your numeric Telegram chat ID before enabling (e.g. from @userinfobot)
     prompt: >
       Run a brief system health check: confirm you are operational, summarize any
       relevant news or updates from the last 24 hours using web search, and report
@@ -38,7 +38,7 @@ jobs:
     enabled: false
   - name: daily-news-summary
     cron: "0 8 * * *"
-    chat_id: 0 # set your numeric Telegram chat ID before enabling (e.g. from @userinfobot)
+    chat_id: "0" # set your numeric Telegram chat ID before enabling (e.g. from @userinfobot)
     prompt: >
       Run a brief system health check: confirm you are operational, summarize any
       relevant news or updates from the last 24 hours using web search, and report

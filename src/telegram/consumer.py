@@ -65,10 +65,10 @@ def _download_file(bot: telebot.TeleBot, file_id: str) -> bytes | None:
         return None
 
 
-def _save_to_workspace(file_bytes: bytes, filename: str, chat_id: int) -> str | None:
+def _save_to_workspace(file_bytes: bytes, filename: str, chat_id: str) -> str | None:
     """Persist uploaded bytes into the agent workspace; return the workspace-relative path."""
     try:
-        upload_dir = os.path.join(config.DEEP_AGENT_WORKSPACE, "workspace", "uploads", str(chat_id))
+        upload_dir = os.path.join(config.DEEP_AGENT_WORKSPACE, "workspace", "uploads", chat_id)
         os.makedirs(upload_dir, exist_ok=True)
         filepath = os.path.join(upload_dir, filename)
         with open(filepath, "wb") as fh:
@@ -245,7 +245,7 @@ class TelegramConsumer:
             if current not in (TaskStatus.RUNNING, TaskStatus.PENDING):
                 self._bot.answer_callback_query(call.id, "Task is no longer active.")
                 self._bot.edit_message_reply_markup(
-                    chat_id=call.message.chat.id,
+                    chat_id=str(call.message.chat.id),
                     message_id=call.message.message_id,
                     reply_markup=None,
                 )
@@ -256,7 +256,7 @@ class TelegramConsumer:
             self._bot.answer_callback_query(call.id, "Task cancelled.")
             self._bot.edit_message_text(
                 "Task cancelled. ✓",
-                chat_id=call.message.chat.id,
+                chat_id=str(call.message.chat.id),
                 message_id=call.message.message_id,
             )
 
@@ -264,7 +264,7 @@ class TelegramConsumer:
         def handle_model_callback(call: telebot.types.CallbackQuery) -> None:
             from src.persistence.preferences_store import get_model, set_model
 
-            chat_id = call.message.chat.id
+            chat_id = str(call.message.chat.id)
             chosen = call.data.split(":", 1)[1]
             current = get_model(chat_id)
 
@@ -311,7 +311,7 @@ class TelegramConsumer:
 
         raw = {
             "update_id": str(uuid4()),
-            "chat_id": message.chat.id,
+            "chat_id": str(message.chat.id),
             "user_id": user_id,
             "message_id": message.message_id,
             "text": media_input["text"],
@@ -322,7 +322,7 @@ class TelegramConsumer:
 
         task = BotTask(
             causation_id=causation_id,
-            chat_id=message.chat.id,
+            chat_id=str(message.chat.id),
             message_id=message.message_id,
             input=raw["text"] or "[non-text message]",
         )
@@ -334,7 +334,7 @@ class TelegramConsumer:
                 _responde_safe,
                 self._telegram_producer,
                 task_id,
-                message.chat.id,
+                str(message.chat.id),
                 raw,
                 "\u23f3 Working on it\u2026",
             )
@@ -368,7 +368,7 @@ class TelegramConsumer:
 def _responde_safe(
     telegram_producer: TelegramProducer,
     task_id: str,
-    chat_id: int,
+    chat_id: str,
     raw: dict,
     status_message_text: str,
 ) -> None:

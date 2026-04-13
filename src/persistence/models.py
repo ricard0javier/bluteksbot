@@ -1,14 +1,14 @@
 """Pydantic models for the event envelope, aggregate contracts, and task tracking."""
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     DONE = "done"
@@ -28,7 +28,7 @@ class TaskStep(BaseModel):
 class BotTask(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()), alias="_id")
     causation_id: str
-    chat_id: int
+    chat_id: str
     message_id: int = 0
     status: TaskStatus = TaskStatus.PENDING
     input: str
@@ -54,7 +54,7 @@ class ScheduledJob(BaseModel):
     name: str
     cron_expr: str
     task_prompt: str
-    chat_id: int
+    chat_id: str
     enabled: bool = True
     created_by: str  # "config" or "user:{chat_id}"
     last_run_at: datetime | None = None
@@ -69,7 +69,7 @@ class JobExecution(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()), alias="_id")
     job_id: str
     job_name: str
-    chat_id: int
+    chat_id: str
     scheduled_fire_time: datetime
     claimed_by: str  # "hostname:pid" — the atomic lock field
     claimed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

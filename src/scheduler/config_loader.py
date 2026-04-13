@@ -1,4 +1,5 @@
 """Scheduler config loader — parses scheduled_jobs.yaml and upserts jobs into MongoDB."""
+
 import logging
 import re
 from pathlib import Path
@@ -42,7 +43,7 @@ def load_from_file(path: str | None = None) -> list[ScheduledJob]:
                 name=entry["name"],
                 cron_expr=entry["cron"],
                 task_prompt=entry["prompt"],
-                chat_id=int(entry["chat_id"]),
+                chat_id=entry["chat_id"],
                 enabled=entry.get("enabled", True),
                 created_by="config",
             )

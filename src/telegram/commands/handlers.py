@@ -9,8 +9,7 @@ import telebot
 from src import config
 from src.persistence.client import get_db
 from src.persistence.preferences_store import get_model, set_model
-from src.persistence.task_store import list_running, update_status
-from src.persistence.models import TaskStatus
+from src.persistence.task_store import list_running
 
 from .registry import CommandRegistry
 
@@ -22,8 +21,8 @@ def register_all(registry: CommandRegistry) -> None:
 
     @registry.register("/clean", "Clear conversation thread and start fresh")
     def clean_thread(message: telebot.types.Message, bot: telebot.TeleBot) -> None:
-        chat_id = message.chat.id
-        thread_id = str(chat_id)
+        chat_id = str(message.chat.id)
+        thread_id = chat_id
         db = get_db()
 
         # LangGraph checkpoint state
@@ -32,19 +31,24 @@ def register_all(registry: CommandRegistry) -> None:
 
         # Summarization history stored under /conversation_history/<thread_id>/
         prefix = f"^/conversation_history/{thread_id}/"
-        ch = db[config.MONGO_COLLECTION_CONV_HISTORY].delete_many(
-            {"_id": {"$regex": prefix}}
-        ).deleted_count
+        ch = (
+            db[config.MONGO_COLLECTION_CONV_HISTORY]
+            .delete_many({"_id": {"$regex": prefix}})
+            .deleted_count
+        )
 
         logger.info(
             "Thread cleaned (chat=%s): checkpoints=%d, writes=%d, history=%d.",
-            chat_id, cp, cw, ch,
+            chat_id,
+            cp,
+            cw,
+            ch,
         )
         bot.send_message(chat_id, "Thread cleared. Starting fresh! \U0001f9f9")
 
     @registry.register("/model", "View or switch the active LLM model")
     def switch_model(message: telebot.types.Message, bot: telebot.TeleBot) -> None:
-        chat_id = message.chat.id
+        chat_id = str(message.chat.id)
         parts = (message.text or "").strip().split(maxsplit=1)
         arg = parts[1].strip() if len(parts) > 1 else ""
         models = config.AVAILABLE_MODELS
@@ -74,11 +78,19 @@ def register_all(registry: CommandRegistry) -> None:
             if len(matches) == 1:
                 chosen = matches[0]
             elif len(matches) > 1:
-                bot.send_message(chat_id, f"Ambiguous: {', '.join(f'`{m}`' for m in matches)}. Be more specific.", parse_mode="Markdown")
+                bot.send_message(
+                    chat_id,
+                    f"Ambiguous: {', '.join(f'`{m}`' for m in matches)}. Be more specific.",
+                    parse_mode="Markdown",
+                )
                 return
 
         if chosen is None:
-            bot.send_message(chat_id, f"Model `{arg}` not found. Use `/model` to list options.", parse_mode="Markdown")
+            bot.send_message(
+                chat_id,
+                f"Model `{arg}` not found. Use `/model` to list options.",
+                parse_mode="Markdown",
+            )
             return
 
         set_model(chat_id, chosen)
@@ -87,7 +99,7 @@ def register_all(registry: CommandRegistry) -> None:
 
     @registry.register("/cancel", "Cancel a running task")
     def cancel_task(message: telebot.types.Message, bot: telebot.TeleBot) -> None:
-        chat_id = message.chat.id
+        chat_id = str(message.chat.id)
         tasks = list_running(chat_id)
 
         if not tasks:
@@ -98,9 +110,7 @@ def register_all(registry: CommandRegistry) -> None:
         for t in tasks:
             label = (t["input"][:40] + "…") if len(t["input"]) > 40 else t["input"]
             keyboard.add(
-                telebot.types.InlineKeyboardButton(
-                    f"❌ {label}", callback_data=f"cancel:{t['id']}"
-                )
+                telebot.types.InlineKeyboardButton(f"❌ {label}", callback_data=f"cancel:{t['id']}")
             )
         bot.send_message(
             chat_id,
