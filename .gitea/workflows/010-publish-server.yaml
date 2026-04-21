@@ -45,7 +45,7 @@ jobs:
         uses: Azure/k8s-deploy@v5
         with:
           action: deploy
-          namespace: home
+          namespace: bluteks
           manifests: |
             infrastructure/01-config.yaml
             infrastructure/01-secrets.yaml
