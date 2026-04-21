@@ -25,6 +25,6 @@ spec:
             - configMapRef:
                 name: bluteksbot
           ports:
-            - containerPort: "8080"
+            - containerPort: 8080
               name: http
               protocol: TCP
