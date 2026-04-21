@@ -1,0 +1,21 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: bluteksbot
+  namespace: bluteks
+data:
+  ENVIRONMENT: production
+  OPENAI_BASE_URL: https://litellm.bluteks.com/v1
+  ORCHESTRATOR_MODEL: minimax-m2
+  WORKER_MODEL: minimax-m2
+  MODEL_MAX_TOKENS: 50000
+  WEB_SEARCH_MAX_RESULTS: 5
+  SMTP_HOST: smtp.gmail.com
+  SMTP_PORT: 587
+  SMTP_USER:
+  SMTP_PASSWORD:
+  EMAIL_FROM:
+  CODE_EXECUTOR_TIMEOUT: 60
+  CODE_EXECUTOR_MAX_OUTPUT_CHARS: 5000
+  DEEP_AGENT_WORKSPACE: /workspace/agent_files
+  SUMMARIZATION_TRIGGER_TOKENS: 40000

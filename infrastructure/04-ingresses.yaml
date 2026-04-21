@@ -1,0 +1,15 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: bluteksbot
+  namespace: bluteks
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - match: Host("bluteksbot.bluteks.com")
+      kind: Rule
+      services:
+        - name: bluteksbot
+          port: http

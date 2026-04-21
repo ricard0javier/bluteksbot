@@ -1,0 +1,78 @@
+name: Publish Server
+run-name: ${{ gitea.actor }} publishing server
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    runs-on: ubuntu-docker
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.REGISTRY_DOMAIN }}
+          username: ${{ vars.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          secrets: |
+            "registry_token=${{ secrets.REGISTRY_GITEA_TOKEN }}"
+          tags: |
+            ${{ vars.REGISTRY_DOMAIN }}/${{ github.repository }}:latest,
+            ${{ vars.REGISTRY_DOMAIN }}/${{ github.repository }}:${{ github.sha }}
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.28.3"
+
+      - name: Set kubectl context
+        uses: azure/k8s-set-context@v4
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Deploy in k8s
+        uses: Azure/k8s-deploy@v5
+        with:
+          action: deploy
+          namespace: home
+          manifests: |
+            infrastructure/01-config.yaml
+            infrastructure/01-secrets.yaml
+            infrastructure/02-deployment.yaml
+            infrastructure/03-service.yaml
+            infrastructure/04-ingresses.yaml
+          images: |
+            ${{ vars.REGISTRY_DOMAIN }}/${{ github.repository }}:${{ github.sha }}
+
+      - name: Notify Success
+        if: success()
+        run: |
+          curl \
+            -H "Content-Type: application/json" \
+            -d '{
+              "username": "com-ricardovz-bluteks-web",
+              "content": "🟢The publish job **SUCCEEDED**: https://gitea.ricardovz.com/ricardovz/-/packages/container/com-ricardovz-bluteks-web/latest"
+            }' \
+            "${{ vars.DISCORD_NOTIFICATIONS_WEBHOOK_URL }}"
+
+      - name: Notify Error
+        if: failure()
+        run: |
+          curl \
+            -H "Content-Type: application/json" \
+            -d '{
+              "username": "com-ricardovz-bluteks-web",
+              "content": "🔴The publish job **FAILED**: https://gitea.ricardovz.com/ricardovz/com-ricardovz-bluteks-web/actions"
+            }' \
+            "${{ vars.DISCORD_NOTIFICATIONS_WEBHOOK_URL }}"

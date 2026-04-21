@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bluteksbot
+  namespace: bluteks
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: bluteksbot
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bluteksbot
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - image: gitea.ricardovz.com/ricardovz/com-ricardovz-bluteksbot:latest
+          imagePullPolicy: Always
+          name: bluteksbot
+          envFrom:
+            - secretRef:
+                name: bluteksbot
+            - configMapRef:
+                name: bluteksbot
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
