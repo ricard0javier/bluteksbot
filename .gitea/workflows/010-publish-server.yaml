@@ -48,7 +48,6 @@ jobs:
           namespace: bluteks
           manifests: |
             infrastructure/01-config.yaml
-            infrastructure/01-secrets.yaml
             infrastructure/02-deployment.yaml
             infrastructure/03-service.yaml
             infrastructure/04-ingresses.yaml
