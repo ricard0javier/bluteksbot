@@ -33,9 +33,7 @@ def setup_logging() -> None:
     plain_fmt = logging.Formatter(fmt)
 
     console = logging.StreamHandler()
-    console.setFormatter(
-        _ColorFormatter(fmt) if config.ENVIRONMENT == "development" else plain_fmt
-    )
+    console.setFormatter(_ColorFormatter(fmt) if config.ENVIRONMENT == "development" else plain_fmt)
 
     file_handler = logging.FileHandler(config.LOG_FILE)
     file_handler.setFormatter(plain_fmt)
@@ -45,9 +43,7 @@ def setup_logging() -> None:
     is_debug = config.LOG_LEVEL.upper() == "DEBUG"
     # keep root conservative to avoid global dependency noise
     root_level = (
-        logging.INFO
-        if is_debug
-        else getattr(logging, config.LOG_LEVEL.upper(), logging.INFO)
+        logging.INFO if is_debug else getattr(logging, config.LOG_LEVEL.upper(), logging.INFO)
     )
     logging.basicConfig(level=root_level, handlers=[console, file_handler])
     # your app namespace
@@ -55,7 +51,5 @@ def setup_logging() -> None:
     # dependency allowlist (from env/config)
 
     for name in config.LOG_DEBUG_DEPENDENCIES:  # e.g. ["httpx", "telegram"]
-        if name is not "":
-            logging.getLogger(name).setLevel(
-                logging.DEBUG if is_debug else logging.WARNING
-            )
+        if name != "":
+            logging.getLogger(name).setLevel(logging.DEBUG if is_debug else logging.WARNING)
