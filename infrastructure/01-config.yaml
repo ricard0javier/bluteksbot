@@ -5,7 +5,7 @@ metadata:
   namespace: bluteks
 data:
   ENVIRONMENT: production
-  OPENAI_BASE_URL: http://litellm.bluteks/v1
+  OPENAI_BASE_URL: http://litellm.bluteks:4000/v1
   ORCHESTRATOR_MODEL: minimax-m2
   WORKER_MODEL: minimax-m2
   MODEL_MAX_TOKENS: "50000"
