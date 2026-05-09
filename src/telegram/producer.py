@@ -47,7 +47,14 @@ class TelegramProducer:
 
         def progress_update_callback(update_text: str):
             text = f"{status_message_text}\n{update_text}"
-            return self._bot.edit_message_text(text, chat_id, status_msg_id)
+            try:
+                return self._bot.edit_message_text(text, chat_id, status_msg_id)
+            except Exception as exc:
+                if not "message is not modified" in str(exc):
+                    logger.warning(
+                        "Failed to edit status message to chat=%s: %s.", chat_id, exc
+                    )
+                raise
 
         if thread_id is None:
             thread_id = chat_id
@@ -83,7 +90,9 @@ class TelegramProducer:
             logger.error("Task %s failed (chat=%s).", task_id, chat_id, exc_info=True)
             task_store.update_status(task_id, TaskStatus.FAILED, error=str(exc))
             try:
-                self._bot.send_message(chat_id, "Sorry, something went wrong. Please try again.")
+                self._bot.send_message(
+                    chat_id, "Sorry, something went wrong. Please try again."
+                )
             except Exception:
                 logger.warning("Failed to send error message to chat=%s.", chat_id)
         finally:
