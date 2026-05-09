@@ -9,8 +9,8 @@ from langchain_core.runnables import RunnableConfig
 logger = logging.getLogger(__name__)
 
 
-def _chat_id(config: RunnableConfig) -> int:
-    return int(config["configurable"]["thread_id"])
+def _chat_id(config: RunnableConfig) -> str:
+    return config["configurable"]["thread_id"]
 
 
 @tool
