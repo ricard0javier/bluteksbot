@@ -32,7 +32,6 @@ logs/
 
 # IDE
 .idea/
-.vscode/
 *.swp
 
 # OS
