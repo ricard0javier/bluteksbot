@@ -30,15 +30,17 @@ def create_job(job: ScheduledJob) -> str:
 
 
 def upsert_job(job: ScheduledJob) -> None:
-    """Insert or update a job by its ID — used for config-file-sourced jobs."""
+    """Insert job if missing, preserving existing records — used for config-file seeding."""
     doc = job.model_dump(by_alias=True)
-    updatable = {k: v for k, v in doc.items() if k not in ("_id", "created_at")}
-    _jobs_col().update_one(
+    result = _jobs_col().update_one(
         {"_id": job.id},
-        {"$set": updatable, "$setOnInsert": {"created_at": doc["created_at"]}},
+        {"$setOnInsert": doc},
         upsert=True,
     )
-    logger.debug("Upserted config job '%s' (%s).", job.name, job.id)
+    if result.upserted_id:
+        logger.info("Inserted config job '%s' (%s).", job.name, job.id)
+    else:
+        logger.debug("Config job '%s' (%s) already exists, preserving.", job.name, job.id)
 
 
 def get_job(job_id: str) -> ScheduledJob | None:
@@ -69,6 +71,32 @@ def enable_job(job_id: str) -> bool:
         {"$set": {"enabled": True, "updated_at": datetime.now(UTC)}},
     )
     return result.modified_count > 0
+
+
+def update_job_config(
+    job_id: str,
+    name: str | None = None,
+    cron_expr: str | None = None,
+    task_prompt: str | None = None,
+    chat_id: str | None = None,
+    enabled: bool | None = None,
+) -> bool:
+    """Update job configuration fields. Returns True if job was found and updated."""
+    fields: dict = {"updated_at": datetime.now(UTC)}
+    if name is not None:
+        fields["name"] = name
+    if cron_expr is not None:
+        fields["cron_expr"] = cron_expr
+    if task_prompt is not None:
+        fields["task_prompt"] = task_prompt
+    if chat_id is not None:
+        fields["chat_id"] = chat_id
+    if enabled is not None:
+        fields["enabled"] = enabled
+    result = _jobs_col().update_one({"_id": job_id}, {"$set": fields})
+    if result.matched_count > 0:
+        logger.info("Updated job config '%s'.", job_id)
+    return result.matched_count > 0
 
 
 def update_last_run(job_id: str, run_at: datetime, next_run_at: datetime | None = None) -> None:

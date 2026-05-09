@@ -43,6 +43,14 @@ class ChatCompletionsRequest(BaseModel):
     conversation_id: str | None = None
 
 
+class JobUpdateRequest(BaseModel):
+    name: str | None = None
+    cron_expr: str | None = None
+    task_prompt: str | None = None
+    chat_id: str | None = None
+    enabled: bool | None = None
+
+
 class _ChoiceMessage(BaseModel):
     role: Literal["assistant"] = "assistant"
     content: str
@@ -410,6 +418,37 @@ def enable_job(job_id: str) -> dict:
     return {"ok": True, "job_id": job_id, "enabled": True}
 
 
+@app.put("/api/jobs/{job_id}")
+def update_job(job_id: str, req: JobUpdateRequest) -> dict:
+    from src.scheduler.service import get_scheduler
+
+    scheduler = get_scheduler()
+    try:
+        if scheduler:
+            ok = scheduler.update_job_config(
+                job_id,
+                name=req.name,
+                cron_expr=req.cron_expr,
+                task_prompt=req.task_prompt,
+                chat_id=req.chat_id,
+                enabled=req.enabled,
+            )
+        else:
+            ok = job_store.update_job_config(
+                job_id,
+                name=req.name,
+                cron_expr=req.cron_expr,
+                task_prompt=req.task_prompt,
+                chat_id=req.chat_id,
+                enabled=req.enabled,
+            )
+        if not ok:
+            raise HTTPException(status_code=404, detail="Job not found")
+        return {"ok": True, "job_id": job_id}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 # ── Dashboard HTML ────────────────────────────────────────────────────────────
 
 _DASHBOARD_HTML = """<!DOCTYPE html>
@@ -479,6 +518,19 @@ _DASHBOARD_HTML = """<!DOCTYPE html>
   .step-section + .step-section { border-top: 1px solid var(--border); }
   .step-section-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 3px; }
   .step-section pre { font-size: 11px; color: var(--text); white-space: pre-wrap; word-break: break-all; margin: 0; line-height: 1.5; }
+  .btn-edit { background: rgba(99,102,241,.15); color: #a5b4fc; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+  .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+  .modal label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 4px; margin-top: 12px; }
+  .modal input, .modal textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; color: var(--text); font-family: var(--font); font-size: 13px; }
+  .modal textarea { min-height: 120px; resize: vertical; font-family: 'Menlo', 'Monaco', monospace; }
+  .modal .checkbox-wrap { display: flex; align-items: center; gap: 8px; }
+  .modal input[type="checkbox"] { width: auto; margin: 0; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
+  .btn-primary { background: var(--accent); color: #fff; padding: 8px 16px; }
+  .btn-secondary { background: rgba(107,114,128,.2); color: var(--muted); padding: 8px 16px; }
 </style>
 </head>
 <body>
@@ -530,6 +582,31 @@ _DASHBOARD_HTML = """<!DOCTYPE html>
     </table>
   </section>
 </main>
+
+<div class="modal-overlay" id="job-edit-modal">
+  <div class="modal">
+    <h3>Edit Job</h3>
+    <form id="job-edit-form" onsubmit="return saveJob(event)">
+      <input type="hidden" id="edit-job-id" />
+      <label for="edit-name">Name</label>
+      <input type="text" id="edit-name" required />
+      <label for="edit-cron">Cron Expression</label>
+      <input type="text" id="edit-cron" required placeholder="0 8 * * *" />
+      <label for="edit-chat-id">Chat ID</label>
+      <input type="text" id="edit-chat-id" required />
+      <label for="edit-prompt">Task Prompt</label>
+      <textarea id="edit-prompt" required></textarea>
+      <label class="checkbox-wrap" style="margin-top:16px">
+        <input type="checkbox" id="edit-enabled" />
+        <span>Enabled</span>
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <script>
 function statusBadge(s) {
@@ -656,6 +733,52 @@ async function toggleJob(jobId, enable) {
   }
 }
 
+let _jobsCache = [];
+
+function openEditModal(jobId) {
+  const job = _jobsCache.find(j => j.id === jobId);
+  if (!job) return;
+  document.getElementById('edit-job-id').value = job.id;
+  document.getElementById('edit-name').value = job.name;
+  document.getElementById('edit-cron').value = job.cron_expr;
+  document.getElementById('edit-chat-id').value = job.chat_id;
+  document.getElementById('edit-prompt').value = job.task_prompt;
+  document.getElementById('edit-enabled').checked = job.enabled;
+  document.getElementById('job-edit-modal').classList.add('open');
+}
+
+function closeEditModal() {
+  document.getElementById('job-edit-modal').classList.remove('open');
+}
+
+async function saveJob(event) {
+  event.preventDefault();
+  const jobId = document.getElementById('edit-job-id').value;
+  const payload = {
+    name: document.getElementById('edit-name').value,
+    cron_expr: document.getElementById('edit-cron').value,
+    chat_id: document.getElementById('edit-chat-id').value,
+    task_prompt: document.getElementById('edit-prompt').value,
+    enabled: document.getElementById('edit-enabled').checked,
+  };
+  try {
+    const res = await fetch(`/api/jobs/${jobId}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || 'Failed to update job');
+    }
+    closeEditModal();
+    await refresh();
+  } catch(err) {
+    alert('Failed to save job: ' + err.message);
+  }
+  return false;
+}
+
 async function refresh() {
   try {
     const data = await fetch('/api/status').then(r => r.json());
@@ -692,21 +815,23 @@ async function refresh() {
     }
 
     // Scheduled Jobs
+    _jobsCache = data.jobs;
     const jbody = document.getElementById('jobs-body');
     if (!data.jobs.length) {
       jbody.innerHTML = '<tr><td colspan="6" class="empty">No jobs configured.</td></tr>';
     } else {
       jbody.innerHTML = data.jobs.map(j => {
-        const btn = j.enabled
-          ? `<button class="btn btn-disable" onclick="toggleJob('${j.id}', false)">Disable</button>`
-          : `<button class="btn btn-enable"  onclick="toggleJob('${j.id}', true)">Enable</button>`;
+        const toggleBtn = j.enabled
+          ? `<button class="btn btn-disable" onclick="toggleJob('${esc(j.id)}', false)">Disable</button>`
+          : `<button class="btn btn-enable"  onclick="toggleJob('${esc(j.id)}', true)">Enable</button>`;
+        const editBtn = `<button class="btn btn-edit" onclick="openEditModal('${esc(j.id)}')">Edit</button>`;
         return `<tr>
-          <td><strong>${j.name}</strong></td>
-          <td><code style="font-size:12px">${j.cron_expr}</code></td>
+          <td><strong>${esc(j.name)}</strong></td>
+          <td><code style="font-size:12px">${esc(j.cron_expr)}</code></td>
           <td><span class="ts">${fmt(j.last_run_at)}</span></td>
           <td><span class="ts">${fmt(j.next_run_at)}</span></td>
           <td>${j.enabled ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--muted)">✗</span>'}</td>
-          <td>${btn}</td>
+          <td>${editBtn} ${toggleBtn}</td>
         </tr>`;
       }).join('');
     }

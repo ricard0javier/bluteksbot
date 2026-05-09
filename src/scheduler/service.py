@@ -102,6 +102,36 @@ class SchedulerService:
         self.unregister_job(job_id)
         return True
 
+    def update_job_config(
+        self,
+        job_id: str,
+        name: str | None = None,
+        cron_expr: str | None = None,
+        task_prompt: str | None = None,
+        chat_id: str | None = None,
+        enabled: bool | None = None,
+    ) -> bool:
+        """Update job config, validate cron, and re-register if enabled. Returns False if not found."""
+        if cron_expr is not None:
+            try:
+                CronTrigger.from_crontab(cron_expr, timezone=config.SCHEDULER_TIMEZONE)
+            except (ValueError, TypeError) as exc:
+                raise ValueError(f"Invalid cron expression: {exc}") from exc
+
+        if not job_store.update_job_config(job_id, name, cron_expr, task_prompt, chat_id, enabled):
+            return False
+
+        job = job_store.get_job(job_id)
+        if job is None:
+            return False
+
+        if job.enabled:
+            self.register_job(job)
+        else:
+            self.unregister_job(job_id)
+
+        return True
+
     def _load_all_jobs(self, extra_jobs: list[ScheduledJob] | None = None) -> None:
         """Load all enabled MongoDB jobs and register with APScheduler.
 

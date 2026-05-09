@@ -5,7 +5,7 @@ from enum import Enum, StrEnum
 from typing import Any
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class TaskStatus(StrEnum):
@@ -63,6 +63,12 @@ class ScheduledJob(BaseModel):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     model_config = {"populate_by_name": True}
+
+    @field_validator("chat_id", mode="before")
+    @classmethod
+    def coerce_chat_id_to_str(cls, v: Any) -> str:
+        """Convert numeric chat_id to string for backward compatibility."""
+        return str(v) if v is not None else ""
 
 
 class JobExecution(BaseModel):
