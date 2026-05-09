@@ -5,6 +5,7 @@ import logging
 from typing import Any
 
 import telebot
+from telebot.apihelper import ApiTelegramException
 from langgraph.graph.state import CompiledStateGraph
 
 from src.agent.agent_interface import stream_agent_updates
@@ -49,11 +50,12 @@ class TelegramProducer:
             text = f"{status_message_text}\n{update_text}"
             try:
                 return self._bot.edit_message_text(text, chat_id, status_msg_id)
-            except Exception as exc:
-                if not "message is not modified" in str(exc):
-                    logger.warning(
-                        "Failed to edit status message to chat=%s: %s.", chat_id, exc
-                    )
+            except ApiTelegramException as exc:
+                if "message is not modified" in exc.description:
+                    return
+                logger.error(
+                    "Failed to edit status message to chat=%s: %s.", chat_id, exc
+                )
                 raise
 
         if thread_id is None:
