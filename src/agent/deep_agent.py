@@ -12,8 +12,8 @@ from langgraph.store.mongodb import MongoDBStore, create_vector_index_config
 from langmem import create_manage_memory_tool, create_search_memory_tool
 
 from src import config
+from src.agent.DynamicSystemPromptMiddleware import dynamic_prompt
 from src.agent.LoggingMiddleware import LoggingMiddleware
-from src.llms.prompts import ORCHESTRATOR_SYSTEM
 from src.persistence.client import get_client, get_db
 from src.persistence.mongodb_backend import MongoDBBackend
 from src.tools.agent_tools import AGENT_TOOLS
@@ -122,11 +122,10 @@ def build_agent(
         # https://forum.langchain.com/t/are-dynamic-tool-lists-allowed-when-using-create-agent/1920/16
         # https://docs.langchain.com/oss/python/langchain/agents#runtime-tool-registration
         tools=tools,
-        system_prompt=ORCHESTRATOR_SYSTEM,
         checkpointer=checkpointer,
         store=store,
         backend=backend,
-        middleware=[LoggingMiddleware()],
+        middleware=[dynamic_prompt, LoggingMiddleware()],
     )
 
     logger.info("Deep Agent built (model=%s).", model_name)

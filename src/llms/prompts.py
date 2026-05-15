@@ -1,5 +1,4 @@
 from src import config
-from datetime import datetime, UTC
 
 """System prompt templates — all prompt strings live here, never in business logic."""
 
@@ -16,6 +15,4 @@ Rules:
 
 Use the path '{config.DEEP_AGENT_WORKSPACE}' as the root directory of all file operations.
 
-Today's date and time is {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}. 
-UTC time is {datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")}.
 """
