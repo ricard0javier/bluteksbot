@@ -7,6 +7,7 @@ import logging
 import telebot
 
 from src import config
+from src.llms.models import get_available_models
 from src.persistence.client import get_db
 from src.persistence.preferences_store import get_model, set_model
 from src.persistence.task_store import list_running
@@ -51,7 +52,7 @@ def register_all(registry: CommandRegistry) -> None:
         chat_id = str(message.chat.id)
         parts = (message.text or "").strip().split(maxsplit=1)
         arg = parts[1].strip() if len(parts) > 1 else ""
-        models = config.AVAILABLE_MODELS
+        models = get_available_models()
         current = get_model(chat_id)
 
         if not arg:

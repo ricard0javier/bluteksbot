@@ -21,6 +21,7 @@ from src.agent.agent_interface import (
     run_agent_stream,
 )
 from src.agent.deep_agent import build_agent
+from src.llms.models import get_available_models
 from src.persistence import job_store, task_store
 from src.persistence.client import get_db
 from src.persistence.models import BotTask, TaskStatus
@@ -140,10 +141,10 @@ def _validate_chat_request(req: ChatCompletionsRequest) -> None:
     if not req.messages:
         raise HTTPException(status_code=400, detail="messages must not be empty")
 
-    if req.model not in config.AVAILABLE_MODELS:
+    if req.model not in get_available_models():
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported model '{req.model}'. Available: {config.AVAILABLE_MODELS}",
+            detail=f"Unsupported model '{req.model}'",
         )
 
 
@@ -274,7 +275,7 @@ def list_models() -> dict[str, Any]:
             "created": 0,
             "owned_by": "bluteksbot",
         }
-        for model_id in config.AVAILABLE_MODELS
+        for model_id in get_available_models()
     ]
     return {"object": "list", "data": data}
 

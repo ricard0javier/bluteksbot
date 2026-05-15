@@ -133,7 +133,7 @@ Slash commands are intercepted **before** the LLM — instant, no token cost.
 | `/commands`          | List all available commands                                       |
 
 
-Available models are controlled by `AVAILABLE_MODELS` in `.env` (comma-separated). The selection is persisted per chat in MongoDB and survives restarts.
+Available models are exposed by the url OPENAI_BASE_URL/models
 
 ### Adding a new command
 

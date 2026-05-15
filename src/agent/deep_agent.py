@@ -5,13 +5,13 @@ from functools import lru_cache
 
 from deepagents import create_deep_agent
 from deepagents.backends import CompositeBackend, FilesystemBackend
-from langchain.chat_models import init_chat_model
 from langchain_openai import OpenAIEmbeddings
 from langgraph.checkpoint.mongodb import MongoDBSaver
 from langgraph.store.mongodb import MongoDBStore, create_vector_index_config
 from langmem import create_manage_memory_tool, create_search_memory_tool
 
 from src import config
+from src.agent.DynamicModelMiddleware import dynamic_model
 from src.agent.DynamicSystemPromptMiddleware import dynamic_prompt
 from src.agent.LoggingMiddleware import LoggingMiddleware
 from src.persistence.client import get_client, get_db
@@ -65,25 +65,6 @@ def build_agent(
         index_config=index_config,
     )
 
-    # The built-in SummarizationMiddleware triggers at fraction(0.85) of max_input_tokens.
-    # Setting max_input_tokens = SUMMARIZATION_TRIGGER_TOKENS / 0.85 makes the trigger exact.
-    # When SUMMARIZATION_TRIGGER_TOKENS=0 the profile is omitted → trigger falls back to
-    # 170 000 tokens, effectively disabling summarization.
-    summarization_profile = (
-        {"max_input_tokens": int(config.SUMMARIZATION_TRIGGER_TOKENS / 0.85)}
-        if config.SUMMARIZATION_TRIGGER_TOKENS > 0
-        else None
-    )
-    model = init_chat_model(
-        model=model_name,
-        model_provider="openai",
-        base_url=config.OPENAI_BASE_URL,
-        api_key=config.OPENAI_API_BEARER_TOKEN,
-        temperature=config.MODEL_TEMPERATURE,
-        max_tokens=config.MODEL_MAX_TOKENS,
-        profile=summarization_profile,
-    )
-
     memory_namespace = tuple(p.strip() for p in config.LANGMEM_NAMESPACE.split(","))
     manage_memory = create_manage_memory_tool(namespace=memory_namespace)
     search_memory = create_search_memory_tool(namespace=memory_namespace)
@@ -116,7 +97,6 @@ def build_agent(
     tools.extend([manage_memory, search_memory])
 
     agent = create_deep_agent(
-        model=model,
         # TODO: implement dynamic tool loading
         # https://www.anthropic.com/engineering/advanced-tool-use
         # https://forum.langchain.com/t/are-dynamic-tool-lists-allowed-when-using-create-agent/1920/16
@@ -125,7 +105,7 @@ def build_agent(
         checkpointer=checkpointer,
         store=store,
         backend=backend,
-        middleware=[dynamic_prompt, LoggingMiddleware()],
+        middleware=[dynamic_model, dynamic_prompt, LoggingMiddleware()],
     )
 
     logger.info("Deep Agent built (model=%s).", model_name)
